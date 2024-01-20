@@ -56,3 +56,6 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Local Nix changes
+0001-nix-squashed-changes-for-Nix-development.patch
