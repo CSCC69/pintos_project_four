@@ -59,3 +59,7 @@ dkms.conf
 
 # Local Nix changes
 0001-nix-squashed-changes-for-Nix-development.patch
+
+# clangd
+compile_commands.json
+.cache
