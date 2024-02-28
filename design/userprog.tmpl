@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Nathanael Robbins <nate.robbinss@mail.utoronto.ca>
+Lucas Ilea <lucas.ilea@mail.utoronto.ca>
+Louis Ren <louis.ren@mail.utoronto.ca>
 
 ---- PRELIMINARIES ----
 
@@ -30,19 +30,40 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct prog_args {
+  char *name;
+  char **args;
+  int arg_count;
+};
+
+A struct to hold the name, arguments, and argument count of a program.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+Argument parsing is implemented by traversing the initial program command line and using strtok_r to parse the arguments into an array.
+Then, we iterate backwards through that array and write them onto the stack in that order.
+
+To avoid overflowing the stack page, we keep track of the length (in bytes) of each argument before we push it onto the stack. If there is no more stack space, we free the stack page and return false.
+The same logic is used when pushing the addresses of each argument, and for the remaining stack arguments.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+Pintos implements strtok_r() but not strtok() because strtok_r() is a reentrant version of strtok().
+This means that the function can be interrupted, resumed, and called again by different threads. This is especially important when writing kernel-level code in Pintos as the Pintos
+kernel is preemptable, and these interruptions can introduce bugs and other issues when using the regular strtok() that uses global state to keep track of the string position.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+#1. Customizability. Having the shell handle executable name and argument passing allows users to customize how commands are interpreted, for example, creating custom shorthand arguments.
+#2. Increased complexity. Having the shell handle executable name and argument passing also allows for more features for processing commands like piping, redirecting output, and executing multiple programs.
 
                  SYSTEM CALLS
                  ============
@@ -53,14 +74,86 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+
+    int fd_max;
+    struct hash fd_file_table;
+    struct list fd_file_closed;
+    bool is_fd_table_initialized;
+
+    struct thread *parent;
+
+    struct semaphore wait_sema;
+
+    struct semaphore exec_sema;
+
+    struct file* executable;
+
+    struct list_elem childelem;
+    struct list child_threads;
+  };
+
+fd_max, fd_file_table, fd_file_closed, and is_fd_table_initialized are used to initialize and properly work the
+fd mapping and lookup system. See the fd system for more details.
+
+parent is the parent thread of this thread.
+
+wait_sema is a sema for parent threads to wait on children.
+
+exec_sema is used to make "exec" system calls only return once the program is loaded or failed.
+
+executable is just the executable file of a user process that is currently running on the thread.
+
+childelem is a list element for child_threads.
+
+child_threads is a list of threads using member childelem that store the child threads of this parent thread.
+
+
+struct fd_file
+  {
+    int fd;
+    struct file *file;
+    struct hash_elem hash_elem;
+    struct list_elem list_elem;
+  };
+
+fd_file is a struct that associates an fd with an open file. It has a hash_elem and a list_elem due to the fd mapping and lookup
+system. See the description of the fd system for more details.
+
+static struct lock file_lock;
+
+file_lock is to make sure that we do not use filesys code more than once at a time.
+
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+File descriptors are associated with each instance of an open file. When the open syscall is called, the "filesys" code locates the inode for the file, and returns a pointer to a "file" struct
+for this instance. Each of these pointers are stored in a "fd_file" struct with an associated file descriptor. Then, the "fd_file" struct is inserted into the "fd_file_table" hash table
+with the file descriptor as the key.
+
+This fd_file_table is stored per process, meaning that file descriptors are only unique within a single process, not the entire OS. For example, two different processes can have different open
+files associated with the same file descriptor number.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+We read and write user data from the kernel via read() and write(). These are called via syscall_handler as usual.
+
+For read, we check if the fd is valid and if it corresponds to STDIN. If so, then we put the user input to a buffer
+via a loop. Afterwards we return the size that we put.
+
+Otherwise, we have an open file. We use our file descriptor setup to get the open file correlated with the fd for the current
+thread, and then read the file to the buffer. When we read we use a lock because we cannot call filesys code from >= two places at once.
+
+For write, we check if the fd is valid and if it corresponds to STDOUT. If so, we write to the buffer using putbuf and a loop.
+
+Otherwise, we have an open file that we access via our file descriptor. We then write to the buffer under a lock for the same reason as read.
+
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -69,8 +162,31 @@ FirstName LastName <email@domain.example>
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+To copy a full page of data from a user address into the kernel, there will be at most 2 calls to pagedir_get_page. This is because the 4096 bytes of data can be entirely within 1 page, or
+split partway between two pages.
+
+With 2 bytes of data, the number is the same - one byte in each page.
+
+In our implementation, there is no further improvement.
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+
+SYS_WAIT is handled as normal initially through our syscall_handler. We then call wait. If the pid is not valid (< 0) we return -1.
+Otherwise, we return the value of process_wait().
+
+We get the child's thread struct from the tid by iterating over the thread's child_list.
+
+In process_wait(), we check if child's parent is not the current thread, if the child is the current thread, or if the child is NULL.
+If so, we just return -1 since we cannot wait here.
+
+When a new thread is created, it holds a semaphore called "exec_sema" that is initialized to a value of 0, meaning that no threads can acquire/sema down it.
+When we wait a thread, we attempt to acquire the child's wait semaphore, which blocks until the child ups its semaphore on exit.
+
+Once we down the wait semaphore, we remove the child from the thread's child list and then free it and it's dying childrens allocated resources, and return its exit status.
+We remove the child from the thread's child list because we need to ensure a child can only be waited once since now, if it is waited again, it will not be found in the child list
+and we will return -1 immediately, as desired.
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -86,12 +202,31 @@ FirstName LastName <email@domain.example>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+To avoid cluttering up system calls with error handling, and the need to free temporarily allocated resources during the execution of a system call, we simply verify all user-specified addresses *before*
+calling into the system call implementation. If any addresses are invalid, the user program will exit.
+
+As an example, consider the following call to the "create" system call.
+create(0x12345678, 5)
+
+After retrieving the stack pointer esp from the interrupt frame, we call verify_stack_pointer_word to ensure that the stack pointer (and 3 bytes past it) are valid. In this case,
+only the address stored at esp is invalid, so we extract the system call number and continue.
+
+The "create" system call takes 2 arguments, so we call stack_pop, verify 4 consecutive stack addresses, and place the esp value for the start of each argument in an array, to be dereferenced later.
+
+To extract the address storing the file name, we call verify_user_pointer_word. Since the address 0x12345678 causes a page fault when dereferenced (handling described in B9), we call exit()
+and do not being system call execution.
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+When a new thread is created, it holds a semaphore called "exec_sema" that is initialized to a value of 0, meaning that no threads can acquire/sema down it.
+When the "exec" system call has finished calling process_execute, it then attempts to acquire "exec_sema" from the newly executed thread.
+This will block the "exec" system call until the thread being created releases/calls sema up on "exec_sema", which it does once it has either successfully loaded or failed to load the executable.
+Then, the "exec" system call will be able to acquire the semaphore, and finally return the PID.
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -100,16 +235,45 @@ FirstName LastName <email@domain.example>
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+When P calls wait(C) before C exits we have a semaphore (wait_sema) that is sema_down/acquired when
+process_wait is called. The thread will try to acquire the semaphore and will wait until it exits.
+In thread_exit the semaphore is released and then process_wait can continue.
+
+In process_wait we call free_thread_and_childs() which will free the fd_file structs and
+destroy the respective child's hash table for children in the thread's list that are dying.
+Then it will recurse and do the same for the children.
+For the threads that are not dying, we set their parent to null.
+In the case that the parent exits without waiting,
+the children are iterated over and then we perform the same process on children that aren't running.
+Whenever a thread exits, we also check if the parent has exited(if the parent is null) and if it has then we free self and children
+that are dying. If the parent hasn't exited we leave the thread struct intact so the parent can wait on it.
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+We chose to safely access user memory with the page fault approach. When a syscall is triggered, we verify both that the stack pointer itself is valid
+(in user memory and dereferenceable without page fault), and then that the user memory address stored at that stack address is valid (in user memory and dereferenceable
+without page fault, using the provided get_user function.) If a page fault is triggered, the page fault handler returns -1, which we detect and then call exit().
+
+We verify all arguments before calling our syscall implementations, which has many advantages described in question B6.
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+The advantage of our design for file descriptors, which is storing the fd->open file mappings in a hash table, means that we don't need to impose a limit on the maximum number of possible file descriptors
+that a process can have open, like would be the case with an array. It also allows for O(1) time lookup for open files using the file descriptor as a key, which wouldn't be possible if we were
+to use a linked list to store this mapping.
+
+Further advantages to our design include reusing file descriptors once they're closed, meaning we can assign file descriptors sequentially and not have to perform calculations or casts to get a file descriptor.
+
+A disadvantage to our design that we contemplated is that storing closed file descriptors to our closed fd list is not O(1) however we chose our implementation because it doesn't impose a limit on open file descriptors.
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+We did not change this mapping.
 
                SURVEY QUESTIONS
                ================
