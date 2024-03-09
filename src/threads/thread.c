@@ -42,10 +42,10 @@ static struct lock tid_lock;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame
-{
-  void *eip;             /* Return address. */
-  thread_func *function; /* Function to call. */
-  void *aux;             /* Auxiliary data for function. */
+  {
+    void *eip;             /* Return address. */
+    thread_func *function; /* Function to call. */
+    void *aux;             /* Auxiliary data for function. */
   };
 
 /* Statistics. */
@@ -305,9 +305,7 @@ thread_exit (void)
       t->status = THREAD_DYING;
     }
   else
-    {
-      free_thread_and_childs (t);
-    }
+    free_thread_and_childs (t);
   schedule ();
   NOT_REACHED ();
 }
@@ -496,9 +494,7 @@ init_thread (struct thread *t, const char *name, int priority,
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   if (parent != NULL)
-    {
-      list_push_back (&parent->child_threads, &t->childelem);
-    }
+    list_push_back (&parent->child_threads, &t->childelem);
   intr_set_level (old_level);
 }
 
@@ -616,8 +612,8 @@ fd_destroyer (struct hash_elem *e, void *aux UNUSED)
 unsigned
 fd_file_hash (const struct hash_elem *fd_file_, void *aux UNUSED)
 {
-  const struct fd_file *fd_file
-      = hash_entry (fd_file_, struct fd_file, hash_elem);
+  const struct fd_file *fd_file = hash_entry (fd_file_, struct fd_file,
+                                              hash_elem);
   return hash_int (fd_file->fd);
 }
 
@@ -626,10 +622,10 @@ bool
 fd_closed_less (const struct list_elem *fd1_file_,
                 const struct list_elem *fd2_file_, void *aux UNUSED)
 {
-  const struct fd_file *fd1_file
-      = list_entry (fd1_file_, struct fd_file, list_elem);
-  const struct fd_file *fd2_file
-      = list_entry (fd2_file_, struct fd_file, list_elem);
+  const struct fd_file *fd1_file = list_entry (fd1_file_, struct fd_file,
+                                               list_elem);
+  const struct fd_file *fd2_file = list_entry (fd2_file_, struct fd_file,
+                                               list_elem);
 
   // To insert in ascending order
   return fd1_file->fd < fd2_file->fd;
@@ -640,10 +636,10 @@ bool
 fd_file_less (const struct hash_elem *fd1_file_,
               const struct hash_elem *fd2_file_, void *aux UNUSED)
 {
-  const struct fd_file *fd1_file
-      = hash_entry (fd1_file_, struct fd_file, hash_elem);
-  const struct fd_file *fd2_file
-      = hash_entry (fd2_file_, struct fd_file, hash_elem);
+  const struct fd_file *fd1_file = hash_entry (fd1_file_, struct fd_file,
+                                               hash_elem);
+  const struct fd_file *fd2_file = hash_entry (fd2_file_, struct fd_file,
+                                               hash_elem);
 
   // To insert in ascending order
   return fd1_file->fd < fd2_file->fd;

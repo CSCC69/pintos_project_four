@@ -149,9 +149,7 @@ free_thread_and_childs (struct thread *parent)
           free_thread_and_childs (child);
         }
       else
-        {
-          child->parent = NULL;
-        }
+        child->parent = NULL;
     }
 
   palloc_free_page (parent);
@@ -168,9 +166,7 @@ free_childs (struct thread *parent)
       struct thread *child = list_entry (e, struct thread, childelem);
       list_remove (&child->childelem);
       if (child->status == THREAD_DYING)
-        {
-          free_thread_and_childs (child);
-        }
+        free_thread_and_childs (child);
     }
 }
 
@@ -283,29 +279,29 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-  static bool setup_stack (void **esp, const struct prog_args *prog_args);
-  static bool validate_segment (const struct Elf32_Phdr *, struct file *);
-  static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
-                            uint32_t read_bytes, uint32_t zero_bytes,
-                            bool writable);
+static bool setup_stack (void **esp, const struct prog_args *prog_args);
+static bool validate_segment (const struct Elf32_Phdr *, struct file *);
+static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
+                          uint32_t read_bytes, uint32_t zero_bytes,
+                          bool writable);
 
-  /* Loads an ELF executable from FILE_NAME into the current thread.
-     Stores the executable's entry point into *EIP
-     and its initial stack pointer into *ESP.
-     Returns true if successful, false otherwise. */
-  bool
-  load (const struct prog_args *prog_args, void (**eip) (void), void **esp)
-  {
-    struct thread *t = thread_current ();
-    struct Elf32_Ehdr ehdr;
-    struct file *file = NULL;
-    off_t file_ofs;
-    bool success = false;
-    int i;
+/* Loads an ELF executable from FILE_NAME into the current thread.
+   Stores the executable's entry point into *EIP
+   and its initial stack pointer into *ESP.
+   Returns true if successful, false otherwise. */
+bool
+load (const struct prog_args *prog_args, void (**eip) (void), void **esp)
+{
+  struct thread *t = thread_current ();
+  struct Elf32_Ehdr ehdr;
+  struct file *file = NULL;
+  off_t file_ofs;
+  bool success = false;
+  int i;
 
-    /* Allocate and activate page directory. */
-    t->pagedir = pagedir_create ();
-    if (t->pagedir == NULL)
+  /* Allocate and activate page directory. */
+  t->pagedir = pagedir_create ();
+  if (t->pagedir == NULL)
     goto done;
   process_activate ();
 

@@ -97,25 +97,21 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    int fd_max;                   /* Highest assigned file descriptor */
-    struct hash fd_file_table;    /* Map of file descriptors to open files */
-    struct list fd_file_closed;   /* Closed fd_file structs for reuse */
-    bool is_fd_table_initialized; /* If the file descriptor hashtable is
-                                     initialized */
+    int fd_max;                         /* Highest assigned file descriptor */
+    struct hash fd_file_table;          /* Map of file descriptors to open files */
+    struct list fd_file_closed;         /* Closed fd_file structs for reuse */
+    bool is_fd_table_initialized;       /* If the file descriptor hashtable is initialized */
 
-    struct thread *parent; /* Parent thread */
+    struct thread *parent;              /* Parent thread */
 
-    struct semaphore
-        wait_sema; /* Semaphore for parent threads to wait on children */
+    struct semaphore wait_sema;         /* Semaphore for parent threads to wait on children */
 
-    struct semaphore exec_sema; /* Semaphore forcing "exec" to wait for program
-                                   load/failure */
+    struct semaphore exec_sema;         /* Semaphore forcing "exec" to wait for program load/failure */
 
-    struct file *executable; /* The executable of a user process running on
-                                this thread */
+    struct file *executable;            /* The executable of a user process running on this thread */
 
-    struct list_elem childelem; /* List element for child_threads */
-    struct list child_threads;  /* Child threads */
+    struct list_elem childelem;         /* List element for child_threads */
+    struct list child_threads;          /* Child threads */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
