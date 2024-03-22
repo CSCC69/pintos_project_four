@@ -3,6 +3,8 @@
 #include <debug.h>
 #include <round.h>
 #include <string.h>
+#include "devices/block.h"
+#include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
@@ -14,10 +16,10 @@
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
-    unsigned magic;                     /* Magic number. */
-    uint32_t unused[125];               /* Not used. */
+    block_sector_t start;                                 /* First data sector. */
+    off_t length;                                         /* File size in bytes. */
+    unsigned magic;                                       /* Magic number. */
+    block_sector_t block_pointers[NUM_DIRECT_BLOCKS + 2]; /* Block pointers. */ 
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -47,10 +49,29 @@ static block_sector_t
 byte_to_sector (const struct inode *inode, off_t pos) 
 {
   ASSERT (inode != NULL);
-  if (pos < inode->data.length)
-    return inode->data.start + pos / BLOCK_SECTOR_SIZE;
-  else
-    return -1;
+//  if (pos >= inode->data.length)
+//    return -1;
+
+  struct block *filesys = block_get_role(BLOCK_FILESYS);
+  unsigned sector_count = bytes_to_sectors(pos);
+
+  if (sector_count <= NUM_DIRECT_BLOCKS)
+    return inode->data.block_pointers[sector_count - 1];
+  sector_count -= NUM_DIRECT_BLOCKS;
+
+  if (sector_count <= NUM_INDIRECT_BLOCKS)
+    {
+      uint32_t indirect_block[BLOCK_POINTERS_PER_BLOCK];
+      block_read(filesys, inode->data.block_pointers[INDIRECT_BLOCK], indirect_block);
+      return indirect_block[sector_count - 1];
+    }
+
+  sector_count -= NUM_INDIRECT_BLOCKS;
+  uint32_t double_indirect_block[BLOCK_POINTERS_PER_BLOCK];
+  block_read(filesys, inode->data.block_pointers[DOUBLE_INDIRECT_BLOCK], double_indirect_block);
+  uint32_t indirect_block[BLOCK_POINTERS_PER_BLOCK];
+  block_read(filesys, double_indirect_block[sector_count / NUM_INDIRECT_BLOCKS], indirect_block);
+  return indirect_block[sector_count % BLOCK_POINTERS_PER_BLOCK];
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -70,39 +91,24 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector)
 {
   struct inode_disk *disk_inode = NULL;
-  bool success = false;
-
-  ASSERT (length >= 0);
 
   /* If this assertion fails, the inode structure is not exactly
      one sector in size, and you should fix that. */
   ASSERT (sizeof *disk_inode == BLOCK_SECTOR_SIZE);
 
   disk_inode = calloc (1, sizeof *disk_inode);
-  if (disk_inode != NULL)
-    {
-      size_t sectors = bytes_to_sectors (length);
-      disk_inode->length = length;
-      disk_inode->magic = INODE_MAGIC;
-      if (free_map_allocate (sectors, &disk_inode->start)) 
-        {
-          block_write (fs_device, sector, disk_inode);
-          if (sectors > 0) 
-            {
-              static char zeros[BLOCK_SECTOR_SIZE];
-              size_t i;
-              
-              for (i = 0; i < sectors; i++) 
-                block_write (fs_device, disk_inode->start + i, zeros);
-            }
-          success = true; 
-        } 
-      free (disk_inode);
-    }
-  return success;
+  if (disk_inode == NULL)
+    return false;
+
+  disk_inode->length = 0;
+  disk_inode->magic = INODE_MAGIC;
+
+  block_write (fs_device, sector, disk_inode);
+  free (disk_inode);
+  return true;
 }
 
 /* Reads an inode from SECTOR
@@ -265,6 +271,14 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt)
     return 0;
 
+  if (bytes_to_sectors(offset) >= bytes_to_sectors(inode->data.length))
+    {
+      if (!inode_grow(inode, size, offset))
+        return 0;
+    }
+    PANIC("want to write to sector %d but file has %d sectors allocated, need to grow file by %d sectors", 
+          bytes_to_sectors(offset), bytes_to_sectors(inode->data.length), bytes_to_sectors(offset - inode->data.length) + bytes_to_sectors(size));
+
   while (size > 0) 
     {
       /* Sector to write, starting byte offset within sector. */
@@ -342,4 +356,19 @@ off_t
 inode_length (const struct inode *inode)
 {
   return inode->data.length;
+}
+
+bool
+inode_grow(struct inode *inode, off_t size, off_t offset)
+{
+  size_t allocated_sectors = bytes_to_sectors(inode->data.length);
+  size_t zero_sectors = bytes_to_sectors(offset - inode->data.length);
+  size_t data_sectors = bytes_to_sectors(size);
+
+  //free_map_allocate(1, &inode->data.block_pointers[0]);
+  inode->data.block_pointers[0] = 2;
+  inode->data.length += 512;
+  block_write (fs_device, inode->sector, &inode->data);
+
+  //PANIC("allocated_sectors: %d, zero_sectors: %d, data_sectors: %d", allocated_sectors, zero_sectors, data_sectors);
 }

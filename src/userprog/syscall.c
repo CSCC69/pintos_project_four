@@ -262,7 +262,7 @@ create (const char *file, unsigned initial_size)
     return false;
 
   lock_acquire (&file_lock);
-  bool ret = filesys_create (file, initial_size);
+  bool ret = filesys_create (file);
   lock_release (&file_lock);
   return ret;
 }
