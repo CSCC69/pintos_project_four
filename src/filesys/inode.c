@@ -42,6 +42,9 @@ struct inode
     struct inode_disk data;             /* Inode content. */
   };
 
+bool create_grow(struct inode_disk *inode, off_t size, off_t offset);
+
+
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
@@ -100,7 +103,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector)
+inode_create (block_sector_t sector, off_t length)
 {
   // printf("inode_create\n");
   struct inode_disk *disk_inode = NULL;
@@ -136,6 +139,11 @@ inode_create (block_sector_t sector)
   disk_inode->magic = INODE_MAGIC;
 
   block_write (fs_device, sector, disk_inode);
+  if (length > 0) {
+    create_grow(disk_inode, length, 0);
+    block_write (fs_device, sector, disk_inode);
+  }
+  
   free (disk_inode);
   return true;
 }
@@ -309,6 +317,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     {
       if (!inode_grow(inode, size, offset))
         return 0;
+    } else {
+      inode->data.length = offset + size;
     }
     //PANIC("want to write to sector %d but file has %d sectors allocated, need to grow file by %d sectors", 
     //      bytes_to_sectors(offset), bytes_to_sectors(inode->data.length), bytes_to_sectors(offset - inode->data.length) + bytes_to_sectors(size));
@@ -364,7 +374,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
   free (bounce);
-
+  // printf("bytes_written = %d inode->data.length = %d\n", bytes_written, inode->data.length);
   return bytes_written;
 }
 
@@ -424,6 +434,39 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
   //inode->data.block_pointers[0] = 2;
   inode->data.length += size;
   block_write (fs_device, inode->sector, &inode->data);
+  return true;
+
+  //PANIC("allocated_sectors: %d, zero_sectors: %d, data_sectors: %d", allocated_sectors, zero_sectors, data_sectors);
+}
+
+bool
+create_grow(struct inode_disk *inode, off_t size, off_t offset)
+{
+  // printf("inode_grow\n");
+  size_t allocated_sectors = bytes_to_sectors(inode->length);
+  size_t zero_sectors = bytes_to_sectors(offset - inode->length);
+  size_t data_sectors = bytes_to_sectors(size);
+
+  size_t end_sector_count = allocated_sectors + zero_sectors + data_sectors;
+  struct block *filesys = block_get_role(BLOCK_FILESYS);
+
+  for (size_t i = allocated_sectors + 1; i <= end_sector_count; i++)
+    {
+      if (i <= NUM_DIRECT_BLOCKS)
+      {
+        free_map_allocate(1, &inode->block_pointers[i-1]);
+      }
+      else if ((i - NUM_DIRECT_BLOCKS) <= NUM_INDIRECT_BLOCKS)
+      {
+        block_sector_t *indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
+        free_map_allocate(1, &indirect_block[0]);
+        free_map_allocate(1, &inode->block_pointers[INDIRECT_BLOCK]);
+        block_write(filesys, inode->block_pointers[INDIRECT_BLOCK], indirect_block);
+      }
+    }
+  //free_map_allocate(1, &inode->data.block_pointers[0]);
+  //inode->data.block_pointers[0] = 2;
+  inode->length += size;
   return true;
 
   //PANIC("allocated_sectors: %d, zero_sectors: %d, data_sectors: %d", allocated_sectors, zero_sectors, data_sectors);

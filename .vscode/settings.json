@@ -1,5 +1,19 @@
 {
     "files.associations": {
-        "*.inc": "c"
+        "*.inc": "c",
+        "__config": "c",
+        "__hash_table": "c",
+        "__locale": "c",
+        "array": "c",
+        "functional": "c",
+        "ios": "c",
+        "iterator": "c",
+        "locale": "c",
+        "ostream": "c",
+        "sstream": "c",
+        "string": "c",
+        "string_view": "c",
+        "vector": "c",
+        "type_traits": "c"
     }
 }
