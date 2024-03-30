@@ -49,9 +49,8 @@ test_main (void)
       char block[BLOCK_SIZE];
       size_t ofs = BLOCK_SIZE * order[i];
       seek (fd, ofs);
-      int r = read (fd, block, BLOCK_SIZE);
-      if (r != BLOCK_SIZE)
-        fail ("read %d bytes at offset %zu failed read = %d", (int) BLOCK_SIZE, ofs, r);
+      if (read (fd, block, BLOCK_SIZE) != BLOCK_SIZE)
+        fail ("read %d bytes at offset %zu failed", (int) BLOCK_SIZE, ofs);
       compare_bytes (block, buf + ofs, BLOCK_SIZE, ofs, file_name);
     }
 
