@@ -59,7 +59,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
   block_sector_t ret;
 
   if (sector_idx < NUM_DIRECT_BLOCKS){
-    // printf("direct_block[%d] = %d\n", sector_idx - 1, inode->data.block_pointers[sector_idx - 1]);
+    // printf("direct_block[%d] = %d\n", sector_idx, inode->data.block_pointers[sector_idx]);
     return inode->data.block_pointers[sector_idx];
   }
     
@@ -69,7 +69,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
     {
       uint32_t indirect_block[BLOCK_POINTERS_PER_BLOCK];
       block_read(filesys, inode->data.block_pointers[INDIRECT_BLOCK], indirect_block);
-      // printf("indirect_block[%d] = %d\n", sector_idx - 1, indirect_block[sector_idx - 1]);
+      // printf("indirect_block[%d] = %d\n", sector_idx, indirect_block[sector_idx]);
       return indirect_block[sector_idx];
     }
 
@@ -476,10 +476,13 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
       block_write(fs_device, disk_inode->block_pointers[i], zeros);
     }
 
-    if (sectors > NUM_DIRECT_BLOCKS) {
-      block_sector_t *indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
-      free_map_allocate(1, &disk_inode->block_pointers[INDIRECT_BLOCK]);
-      block_write(fs_device, disk_inode->block_pointers[INDIRECT_BLOCK], indirect_block);
+    if (sectors >= NUM_DIRECT_BLOCKS) {
+      block_sector_t *indirect_block;
+      if(indirect_block = disk_inode->block_pointers[INDIRECT_BLOCK] == 0){
+        indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
+        free_map_allocate(1, &disk_inode->block_pointers[INDIRECT_BLOCK]);
+        block_write(fs_device, disk_inode->block_pointers[INDIRECT_BLOCK], indirect_block);
+      }
       
       for (; i < sectors && i - NUM_DIRECT_BLOCKS < NUM_INDIRECT_BLOCKS; i++) {
         free_map_allocate(1, &indirect_block[i - NUM_DIRECT_BLOCKS]);
@@ -487,16 +490,22 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
       }
     }
 
-    if (sectors > NUM_DIRECT_BLOCKS + NUM_INDIRECT_BLOCKS) {
-      block_sector_t *double_indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
-      free_map_allocate(1, &disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK]);
-      block_write(fs_device, disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK], double_indirect_block);
+    if (sectors >= NUM_DIRECT_BLOCKS + NUM_INDIRECT_BLOCKS) {
+      block_sector_t *double_indirect_block;
+      if(double_indirect_block = disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK] == 0) {
+        double_indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
+        free_map_allocate(1, &disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK]);
+        block_write(fs_device, disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK], double_indirect_block);
+      }
 
       for (size_t j = 0; j < (sectors - NUM_DIRECT_BLOCKS - NUM_INDIRECT_BLOCKS) / BLOCK_POINTERS_PER_BLOCK; j++) {
-        block_sector_t *indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
-        free_map_allocate(1, &double_indirect_block[j]);
-        block_write(fs_device, double_indirect_block[j], indirect_block);
-
+        block_sector_t *indirect_block;
+        if(indirect_block = double_indirect_block[j] == 0) {
+          indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
+          free_map_allocate(1, &double_indirect_block[j]);
+          block_write(fs_device, double_indirect_block[j], indirect_block);
+        }
+        
         for (; i < sectors && i - NUM_DIRECT_BLOCKS - NUM_INDIRECT_BLOCKS - j * BLOCK_POINTERS_PER_BLOCK < NUM_INDIRECT_BLOCKS; i++) {
           free_map_allocate(1, &indirect_block[i - NUM_DIRECT_BLOCKS - NUM_INDIRECT_BLOCKS - j * BLOCK_POINTERS_PER_BLOCK]);
           block_write(fs_device, indirect_block[i - NUM_DIRECT_BLOCKS - NUM_INDIRECT_BLOCKS - j * BLOCK_POINTERS_PER_BLOCK], zeros);
