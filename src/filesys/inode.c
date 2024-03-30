@@ -54,32 +54,32 @@ byte_to_sector (const struct inode *inode, off_t pos)
 //    return -1;
 
   struct block *filesys = block_get_role(BLOCK_FILESYS);
-  unsigned sector_count = pos / BLOCK_SECTOR_SIZE;
+  unsigned sector_idx = pos / BLOCK_SECTOR_SIZE;
 
   block_sector_t ret;
 
-  if (sector_count <= NUM_DIRECT_BLOCKS){
-    // printf("direct_block[%d] = %d\n", sector_count - 1, inode->data.block_pointers[sector_count - 1]);
-    return inode->data.block_pointers[sector_count];
+  if (sector_idx < NUM_DIRECT_BLOCKS){
+    // printf("direct_block[%d] = %d\n", sector_idx - 1, inode->data.block_pointers[sector_idx - 1]);
+    return inode->data.block_pointers[sector_idx];
   }
     
-  sector_count -= NUM_DIRECT_BLOCKS;
+  sector_idx -= NUM_DIRECT_BLOCKS;
 
-  if (sector_count <= NUM_INDIRECT_BLOCKS)
+  if (sector_idx < NUM_INDIRECT_BLOCKS)
     {
       uint32_t indirect_block[BLOCK_POINTERS_PER_BLOCK];
       block_read(filesys, inode->data.block_pointers[INDIRECT_BLOCK], indirect_block);
-      // printf("indirect_block[%d] = %d\n", sector_count - 1, indirect_block[sector_count - 1]);
-      return indirect_block[sector_count];
+      // printf("indirect_block[%d] = %d\n", sector_idx - 1, indirect_block[sector_idx - 1]);
+      return indirect_block[sector_idx];
     }
 
-  sector_count -= NUM_INDIRECT_BLOCKS;
+  sector_idx -= NUM_INDIRECT_BLOCKS;
   uint32_t double_indirect_block[BLOCK_POINTERS_PER_BLOCK];
   block_read(filesys, inode->data.block_pointers[DOUBLE_INDIRECT_BLOCK], double_indirect_block);
   uint32_t indirect_block[BLOCK_POINTERS_PER_BLOCK];
-  block_read(filesys, double_indirect_block[sector_count / NUM_INDIRECT_BLOCKS], indirect_block);
-  // printf("double_indirect_block[%d] = %d\n", sector_count / NUM_INDIRECT_BLOCKS, double_indirect_block[sector_count / NUM_INDIRECT_BLOCKS]);
-  return indirect_block[sector_count % BLOCK_POINTERS_PER_BLOCK];
+  block_read(filesys, double_indirect_block[sector_idx / NUM_INDIRECT_BLOCKS], indirect_block);
+  // printf("double_indirect_block[%d] = %d\n", sector_idx / NUM_INDIRECT_BLOCKS, double_indirect_block[sector_idx / NUM_INDIRECT_BLOCKS]);
+  return indirect_block[sector_idx % BLOCK_POINTERS_PER_BLOCK];
 }
 
 /* List of open inodes, so that opening a single inode twice
@@ -500,7 +500,7 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
       }
     }
 
-  inode->data.length = offset + size;
+  inode->data.length = offset + size > inode->data.length ? offset + size : inode->data.length;
   block_write (fs_device, inode->sector, &inode->data);
   return true;
 
