@@ -26,7 +26,7 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector)
 {
-  return inode_create (sector, 16);
+  return inode_create (sector, 0);
 }
 
 /* Opens and returns the directory for the given INODE, of which
