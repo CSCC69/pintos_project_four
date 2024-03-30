@@ -366,7 +366,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       if (!inode_grow(inode, size, offset))
         return 0;
     } else {
-      inode->data.length = offset + size;
+      inode->data.length = offset + size > inode->data.length ? offset + size : inode->data.length;
     }
     //PANIC("want to write to sector %d but file has %d sectors allocated, need to grow file by %d sectors", 
     //      bytes_to_sectors(offset), bytes_to_sectors(inode->data.length), bytes_to_sectors(offset - inode->data.length) + bytes_to_sectors(size));
@@ -422,7 +422,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       bytes_written += chunk_size;
     }
   free (bounce);
-  // printf("bytes_written = %d inode->data.length = %d\n", bytes_written, inode->data.length);
+  // if(bytes_written == 0)
+  //   printf("bytes_written = %d inode->data.length = %d size = %d\n", bytes_written, inode->data.length, size);
   return bytes_written;
 }
 
@@ -480,7 +481,7 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
     }
   //free_map_allocate(1, &inode->data.block_pointers[0]);
   //inode->data.block_pointers[0] = 2;
-  inode->data.length += size;
+  inode->data.length = offset + size;
   block_write (fs_device, inode->sector, &inode->data);
   return true;
 
