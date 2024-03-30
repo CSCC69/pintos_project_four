@@ -475,7 +475,9 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
       free_map_allocate(1, &disk_inode->block_pointers[i]);
       block_write(fs_device, disk_inode->block_pointers[i], zeros);
     }
-
+  //TODO: 0 check is sus since 0 is a valid sector
+  //TODO: if the indirect or double indirect blocks are already initialized (so we don't calloc them) we should read the
+  //TODO: fix the compiler errors and warnings no clue how this passes more tests
     if (sectors >= NUM_DIRECT_BLOCKS) {
       block_sector_t *indirect_block;
       if(indirect_block = disk_inode->block_pointers[INDIRECT_BLOCK] == 0){
