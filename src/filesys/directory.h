@@ -23,6 +23,7 @@ struct inode *dir_get_inode (struct dir *);
 struct dir *dir_path_lookup(const char *dir_path);
 bool dir_change(const char *dir);
 bool dir_make(const char *dir);
+struct dir *dir_path_lookup(const char *dir_path);
 
 /* Reading and writing. */
 bool dir_lookup (const struct dir *, const char *name, struct inode **);

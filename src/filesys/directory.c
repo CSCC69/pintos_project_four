@@ -38,9 +38,24 @@ bool dir_make(const char *dir) {
   strlcpy(dir_copy, dir, strlen(dir_copy));
 
   char* last_slash = strrchr(dir_copy, '/');
-  last_slash = '\0';
+  if(last_slash != NULL) 
+    *last_slash = '\0';
 
-  struct dir *cur = strchr(dir_copy, '/') == NULL ? dir_open_root() : dir_path_lookup(dir_copy);
+  // struct dir *cur = strchr(dir_copy, '/') == NULL ? dir_open_root() : dir_path_lookup(dir_copy);
+
+  struct dir *cur;
+  if(dir_copy[0] == '/') {
+    printf("dir_make: opening root\n");
+    cur = dir_open_root();
+  } else{
+    printf("dir_make: opening cwd %p\n", thread_current()->cwd->inode);
+    cur = thread_current()->cwd;
+  }
+ if (cur == NULL) {
+  cur = dir_open_root();
+  printf("dir_make: opening root\n");
+ }
+   
 
   if(cur == NULL){
     return false;
@@ -50,6 +65,8 @@ bool dir_make(const char *dir) {
   free_map_allocate (1, &inode_sector);
   dir_create(inode_sector);
   dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector);
+  printf("made dir %s\n", dir_copy);
+  printf("trying to lookup %d using %s\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char));
     
   return true;
 }
@@ -62,19 +79,25 @@ struct dir *dir_path_lookup(const char *dir_path) {
   struct dir *cur;
 
   if(dir_copy[0] == '/') {
+    printf("dir_path_lookup: opening root\n");
     cur = dir_open_root();
   } else{
+    printf("dir_path_lookup: opening cwd %p\n", thread_current()->cwd->inode);
     cur = thread_current()->cwd;
   }
-//  if (cur == NULL)
-//    cur = dir_open_root();
+ if (cur == NULL) {
+  cur = dir_open_root();
+  printf("dir_path_lookup: opening root\n");
+ }
+   
 
   for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
-    printf ("'%s'\n", token);
+    printf ("trynna find '%s'\n", token);
       //check if cur contains token
       struct dir dir;
       struct dir_entry ep;
       if(!lookup(cur, token, &ep, &dir.pos)) {
+        printf("couldnt find %s\n", token);
         return NULL;
       }
       dir.inode = inode_open(ep.inode_sector);
@@ -205,6 +228,7 @@ dir_lookup (const struct dir *dir, const char *name,
 bool
 dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 {
+  printf("dir_add %s\n", name);
   struct dir_entry e;
   off_t ofs;
   bool success = false;

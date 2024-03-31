@@ -359,13 +359,18 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
 
-  if (inode->deny_write_cnt)
+  if (inode->deny_write_cnt) {
+    printf("inode->deny_write_cnt = %d\n", inode->deny_write_cnt);
     return 0;
+  }
 
   if (bytes_to_sectors(offset) >= bytes_to_sectors(inode->data.length))
     {
-      if (!inode_grow(inode, size, offset))
+      if (!inode_grow(inode, size, offset)) {
+        printf("inode_grow failed\n");
         return 0;
+      }
+        
     } else {
       inode->data.length = offset + size > inode->data.length ? offset + size : inode->data.length;
     }
