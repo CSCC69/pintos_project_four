@@ -35,12 +35,12 @@ bool dir_change(const char *dir) {
 
 bool dir_make(const char *dir) {
   char *dir_copy = malloc(strlen(dir) + 1);
-  strlcpy(dir_copy, dir, strlen(dir));
+  strlcpy(dir_copy, dir, strlen(dir_copy));
 
   char* last_slash = strrchr(dir_copy, '/');
   last_slash = '\0';
 
-  struct dir *cur = dir_path_lookup(dir_copy);
+  struct dir *cur = strchr(dir_copy, '/') == NULL ? dir_open_root() : dir_path_lookup(dir_copy);
 
   if(cur == NULL){
     return false;
@@ -49,15 +49,14 @@ bool dir_make(const char *dir) {
   block_sector_t inode_sector = 0;
   free_map_allocate (1, &inode_sector);
   dir_create(inode_sector);
-  dir_add(cur, &last_slash + sizeof(char), inode_sector);
+  dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector);
     
   return true;
 }
 
 struct dir *dir_path_lookup(const char *dir_path) {
   char *dir_copy = malloc(strlen(dir_path) + 1);
-  strlcpy(dir_copy, dir_path, strlen(dir_path) + 1);
-  
+  strlcpy(dir_copy, dir_path, strlen(dir_copy));
   char *token, *save_ptr;
 
   struct dir *cur;
@@ -67,13 +66,15 @@ struct dir *dir_path_lookup(const char *dir_path) {
   } else{
     cur = thread_current()->cwd;
   }
+//  if (cur == NULL)
+//    cur = dir_open_root();
 
   for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
     printf ("'%s'\n", token);
       //check if cur contains token
       struct dir dir;
       struct dir_entry ep;
-      if(!lookup(cur, token, &ep, dir.pos)) {
+      if(!lookup(cur, token, &ep, &dir.pos)) {
         return NULL;
       }
       dir.inode = inode_open(ep.inode_sector);

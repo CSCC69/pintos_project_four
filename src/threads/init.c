@@ -128,7 +128,7 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
-  // thread_current()->cwd = dir_open_root ();
+  //thread_current()->cwd = dir_open_root ();
 
   printf ("Boot complete.\n");
   

@@ -75,7 +75,8 @@ start_process (void *prog_args_)
   struct intr_frame if_;
   bool success;
 
-  thread_current()->cwd = thread_current()->parent->cwd;
+  //thread_current()->cwd = thread_current()->parent->cwd;
+  thread_current()->cwd = dir_open_root();
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);

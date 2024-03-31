@@ -284,6 +284,7 @@ exec (const char *cmd_line)
   if (pid == PID_ERROR)
     return PID_ERROR;
   struct thread *thread = get_child_by_tid (pid);
+  thread->cwd = thread_current()->cwd;
   sema_down (&thread->exec_sema);
 
   return pid;
