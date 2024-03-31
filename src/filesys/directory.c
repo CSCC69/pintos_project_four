@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -20,6 +21,68 @@ struct dir_entry
     char name[NAME_MAX + 1];            /* Null terminated file name. */
     bool in_use;                        /* In use or free? */
   };
+
+static bool lookup (const struct dir *dir, const char *name, struct dir_entry *ep, off_t *ofsp);
+
+bool dir_change(const char *dir) {
+  struct dir *cur = dir_path_lookup(dir);
+  if(cur == NULL){
+    return false;
+  }
+  thread_current()->cwd = cur;
+  return true;
+}
+
+bool dir_make(const char *dir) {
+  char *dir_copy = malloc(strlen(dir) + 1);
+  strlcpy(dir_copy, dir, strlen(dir) + 1);
+
+  char* last_slash = strrchr(dir_copy, '/');
+  last_slash = '\0';
+
+  struct dir *cur = dir_path_lookup(dir_copy);
+
+  if(cur == NULL){
+    return false;
+  }
+
+  block_sector_t inode_sector = 0;
+  free_map_allocate (1, &inode_sector);
+  dir_create(inode_sector);
+  dir_add(cur, &last_slash + sizeof(char), inode_sector);
+    
+  return true;
+}
+
+struct dir *dir_path_lookup(const char *dir_path) {
+  char *dir_copy = malloc(strlen(dir_path) + 1);
+  strlcpy(dir_copy, dir_path, strlen(dir_path) + 1);
+  
+  char *token, *save_ptr;
+
+  struct dir *cur;
+
+  if(dir_copy[0] == '/') {
+    cur = dir_open_root();
+  } else{
+    cur = thread_current()->cwd;
+  }
+
+  for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
+    printf ("'%s'\n", token);
+      //check if cur contains token
+      struct dir dir;
+      struct dir_entry ep;
+      if(!lookup(cur, token, &ep, dir.pos)) {
+        return NULL;
+      }
+      dir.inode = inode_open(ep.inode_sector);
+
+      cur = &dir;
+      //cur = token
+  }
+  return cur;
+}
 
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */

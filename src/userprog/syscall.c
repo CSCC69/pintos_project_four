@@ -32,6 +32,11 @@ int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
+bool chdir (const char *dir);
+bool mkdir (const char *dir);
+bool readdir (int fd, char *name);
+bool isdir (int fd);
+int inumber (int fd);
 
 static struct lock file_lock;
 
@@ -192,9 +197,38 @@ syscall_handler (struct intr_frame *f)
       unsigned int length = *(unsigned int *)syscall_args[2];
       f->eax = write (fd, write_buffer, length);
       break;
+    case SYS_CHDIR:
+      break;
+    case SYS_MKDIR:
+      break;
+    case SYS_READDIR:
+      break;
+    case SYS_ISDIR:
+      break;
+    case SYS_INUMBER:
+      break;
     default:
       break;
     }
+}
+
+bool chdir (const char *dir){
+  return true;
+}
+bool mkdir (const char *dir){
+  return true;
+}
+bool readdir (int fd, char *name){
+  return true;
+
+}
+bool isdir (int fd){
+  return true;
+
+}
+int inumber (int fd){
+  return 0;
+
 }
 
 /* Kernel implementation of the halt syscall */
