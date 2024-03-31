@@ -17,6 +17,7 @@
 #include <string.h>
 #include <syscall-nr.h>
 #include <userprog/pagedir.h>
+#include <filesys/directory.h>
 
 void syscall_handler (struct intr_frame *);
 void halt (void);
@@ -198,8 +199,16 @@ syscall_handler (struct intr_frame *f)
       f->eax = write (fd, write_buffer, length);
       break;
     case SYS_CHDIR:
+      stack_pop (&syscall_args[0], 1, esp);
+      verify_user_pointer_word (syscall_args[0]);
+      const char *ch_dir = *(const char **)syscall_args[0];
+      f->eax = chdir (ch_dir);
       break;
     case SYS_MKDIR:
+      stack_pop (&syscall_args[0], 1, esp);
+      verify_user_pointer_word (syscall_args[0]);
+      const char *mk_dir = *(const char **)syscall_args[0];
+      f->eax = mkdir (mk_dir);
       break;
     case SYS_READDIR:
       break;
@@ -213,10 +222,14 @@ syscall_handler (struct intr_frame *f)
 }
 
 bool chdir (const char *dir){
-  return true;
+  if(dir == NULL || dir == "\0")
+    return false;
+  return dir_change(dir);
 }
 bool mkdir (const char *dir){
-  return true;
+  if(dir == NULL || dir == "\0")
+    return false;
+  return dir_make(dir);
 }
 bool readdir (int fd, char *name){
   return true;

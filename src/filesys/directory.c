@@ -35,7 +35,7 @@ bool dir_change(const char *dir) {
 
 bool dir_make(const char *dir) {
   char *dir_copy = malloc(strlen(dir) + 1);
-  strlcpy(dir_copy, dir, strlen(dir) + 1);
+  strlcpy(dir_copy, dir, strlen(dir));
 
   char* last_slash = strrchr(dir_copy, '/');
   last_slash = '\0';
