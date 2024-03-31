@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <filesys/directory.h>
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -201,6 +202,10 @@ thread_create (const char *name, int priority, thread_func *function,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  // t->cwd = thread_current()->cwd;
+  // t->cwd = dir_open_root ();
+
 
   /* Add to run queue. */
   thread_unblock (t);

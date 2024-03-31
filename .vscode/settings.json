@@ -17,6 +17,7 @@
         "type_traits": "c",
         "istream": "c",
         "filesys.h": "c",
-        "main.h": "c"
+        "main.h": "c",
+        "off_t.h": "c"
     }
 }
