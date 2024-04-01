@@ -87,7 +87,8 @@ filesys_create (const char *name, off_t initial_size)
 
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
-  // dir_close (dir);
+  if (dir != thread_current()->cwd)
+    dir_close (dir);
 
   return success;
 }
@@ -105,7 +106,8 @@ filesys_open (const char *name)
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
-  // dir_close (dir);
+  if (dir != thread_current()->cwd)
+    dir_close (dir);
 
   return file_open (inode);
 }
