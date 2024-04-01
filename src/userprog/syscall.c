@@ -18,6 +18,7 @@
 #include <syscall-nr.h>
 #include <userprog/pagedir.h>
 #include <filesys/directory.h>
+#include <filesys/inode.h>
 
 void syscall_handler (struct intr_frame *);
 void halt (void);
@@ -232,13 +233,13 @@ bool mkdir (const char *dir){
   return dir_make(dir);
 }
 bool readdir (int fd, char *name){
-  return true;
+  return fd_readdir(fd, name);
 
 }
 bool isdir (int fd){
-  return true;
-
+  return file_is_dir(get_fd_file(thread_current(), fd)->file);
 }
+
 int inumber (int fd){
   return 0;
 

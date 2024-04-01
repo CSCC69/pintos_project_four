@@ -77,7 +77,7 @@ struct dir *dir_path_lookup(char *dir_path) {
   if (strcmp(dir_path, "") == 0){
     return thread_current()->cwd;
   }
-  
+
   char *token, *save_ptr;
 
   struct dir *cur;
@@ -317,4 +317,13 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
+}
+
+bool fd_readdir(int fd, char *name){
+  struct fd_file *fd_file = get_fd_file(thread_current(), fd);
+  struct dir *dir = malloc(sizeof(struct dir));
+  dir->inode = file_get_inode(fd_file->file);
+  dir->pos = 0;
+
+  return dir_readdir(dir, name);
 }

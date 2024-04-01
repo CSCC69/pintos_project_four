@@ -528,6 +528,6 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
   //PANIC("allocated_sectors: %d, zero_sectors: %d, data_sectors: %d", allocated_sectors, zero_sectors, data_sectors);
 }
 
-bool is_dir(struct inode *inode){
+bool inode_is_dir(struct inode *inode){
   return inode->data.is_dir;
 }
