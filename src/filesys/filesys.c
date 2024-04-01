@@ -47,16 +47,22 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
+  // printf("filesys_create: %s\n", name);
   block_sector_t inode_sector = 0;
   char *dir_copy = malloc(strlen(name) + 1);
-  strlcpy(dir_copy, name, strlen(dir_copy));
+  strlcpy(dir_copy, name, strlen(name) + 1);
 
   char* last_slash = strrchr(dir_copy, '/');
+  struct dir *dir;
+
   if(last_slash != NULL) {
     *last_slash = '\0';
+    // printf("looking up %s\n", dir_copy);
+    dir = dir_path_lookup(dir_copy);
+  } else{
+    dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
-
-  struct dir *dir = dir_path_lookup(dir_copy);
+  ASSERT(dir != NULL);
 
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
@@ -68,6 +74,7 @@ filesys_create (const char *name, off_t initial_size)
   if (dir != thread_current()->cwd)
     dir_close (dir);
 
+  // printf("filesys_create: %d\n", success);
   return success;
 }
 
@@ -79,19 +86,28 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
+  // printf("filesys_open: %s\n", name);
   if(strcmp(name, "/") == 0) {
     return file_open(inode_open(ROOT_DIR_SECTOR));
   }
   
   char *dir_copy = malloc(strlen(name) + 1);
-  strlcpy(dir_copy, name, strlen(dir_copy));
+  strlcpy(dir_copy, name, strlen(name) + 1);
 
   char* last_slash = strrchr(dir_copy, '/');
+  struct dir *dir; 
+
   if(last_slash != NULL) {
-    *last_slash = '\0';
+    if(!strcmp(last_slash, dir_copy)){
+      dir = dir_open_root();
+    } else {
+      *last_slash = '\0';
+      dir = dir_path_lookup(dir_copy);
+    }
+  } else{
+    dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
 
-  struct dir *dir = dir_path_lookup(dir_copy);
 
   struct inode *inode = NULL;
 

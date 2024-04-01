@@ -531,3 +531,7 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
 bool inode_is_dir(struct inode *inode){
   return inode->data.is_dir;
 }
+
+int inode_open_cnt(struct inode *inode){
+  return inode->open_cnt;
+}

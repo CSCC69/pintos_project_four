@@ -7,6 +7,7 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 #include "filesys/free-map.h" 
+#include "filesys/fsutil.h"
 
 /* A directory. */
 struct dir 
@@ -37,7 +38,7 @@ bool dir_change(const char *dir) {
 bool dir_make(const char *dir) {
   // printf("Thread %s starting dir_make\n", thread_current()->name);
   char *dir_copy = malloc(strlen(dir) + 1);
-  strlcpy(dir_copy, dir, strlen(dir_copy));
+  strlcpy(dir_copy, dir, strlen(dir) + 1);
 
   char* last_slash = strrchr(dir_copy, '/');
   if(last_slash != NULL) 
@@ -63,19 +64,23 @@ bool dir_make(const char *dir) {
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && dir_create(inode_sector)
-                  && dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector));
-  // printf("made dir %s in sector %d in dir %p;\n", dir_copy, inode_sector, cur);
-  // printf("trying to lookup %d using %s in dir %p\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char), cur);
+                  && dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector))
+                  && dir_add(dir_open(inode_open(inode_sector)), ".", inode_sector)
+                  && dir_add(dir_open(inode_open(inode_sector)), "..", inode_get_inumber(cur->inode));
+
     
   return success;
 }
 
 struct dir *dir_path_lookup(char *dir_path) {
-  if (strrchr(dir_path, '/') == NULL){
-    return dir_open_root();
-  }
+  // if (strrchr(dir_path, '/') == NULL){
+  //   return thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
+  // }
   if (strcmp(dir_path, "") == 0){
     return thread_current()->cwd;
+  }
+  if (strcmp(dir_path, "/") == 0){
+    return dir_open_root();
   }
 
   char *token, *save_ptr;
@@ -83,6 +88,7 @@ struct dir *dir_path_lookup(char *dir_path) {
   struct dir *cur;
 
   if(dir_path[0] == '/') {
+    // printf("root\n");
     cur = dir_open_root();
   } else{
     cur = thread_current()->cwd;
@@ -90,12 +96,24 @@ struct dir *dir_path_lookup(char *dir_path) {
  if (cur == NULL) {
   cur = dir_open_root();
  }
+
+ if(strrchr(dir_path, '/') == NULL){
+    struct dir *dir = malloc(sizeof(struct dir));
+      struct dir_entry ep;
+      if(!lookup(cur, dir_path, &ep, &dir->pos)) {
+        // printf("dir_path_lookup: lookup1 failed\n");
+        return NULL;
+      }
+      dir->inode = inode_open(ep.inode_sector);
+      return dir;
+  }
    
 
   for (token = strtok_r (dir_path, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
       struct dir *dir = malloc(sizeof(struct dir));
       struct dir_entry ep;
       if(!lookup(cur, token, &ep, &dir->pos)) {
+        // printf("dir_path_lookup: lookup2 failed\n");
         return NULL;
       }
       dir->inode = inode_open(ep.inode_sector);
@@ -175,6 +193,7 @@ static bool
 lookup (const struct dir *dir, const char *name,
         struct dir_entry *ep, off_t *ofsp) 
 {
+  // printf("lookup: looking for %s\n", name);
   struct dir_entry e;
   size_t ofs;
   
@@ -182,7 +201,8 @@ lookup (const struct dir *dir, const char *name,
   ASSERT (name != NULL);
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) 
+       ofs += sizeof e) {
+        // printf("lookup: %s\n", e.name);
     if (e.in_use && !strcmp (name, e.name)) 
       {
         if (ep != NULL)
@@ -191,6 +211,7 @@ lookup (const struct dir *dir, const char *name,
           *ofsp = ofs;
         return true;
       }
+       }
   return false;
 }
 
@@ -282,7 +303,7 @@ dir_remove (struct dir *dir, const char *name)
 
   /* Open inode. */
   inode = inode_open (e.inode_sector);
-  if (inode == NULL)
+  if (inode == NULL || inode_open_cnt(inode) > 1)
     goto done;
 
   /* Erase directory entry. */
@@ -310,7 +331,7 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
-      if (e.in_use)
+      if (e.in_use && strcmp(e.name, ".") != 0 && strcmp(e.name, "..") != 0)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
           return true;

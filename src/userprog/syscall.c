@@ -212,10 +212,21 @@ syscall_handler (struct intr_frame *f)
       f->eax = mkdir (mk_dir);
       break;
     case SYS_READDIR:
+      stack_pop (&syscall_args[0], 2, esp);
+      fd = *(int *)syscall_args[0];
+      verify_user_pointer_word (syscall_args[1]);
+      char *name = *(char **)syscall_args[1];
+      f->eax = readdir (fd, name);
       break;
     case SYS_ISDIR:
+      stack_pop (&syscall_args[0], 1, esp);
+      fd = *(int *)syscall_args[0];
+      f->eax = isdir (fd);
       break;
     case SYS_INUMBER:
+      stack_pop (&syscall_args[0], 1, esp);
+      fd = *(int *)syscall_args[0];
+      f->eax = inumber (fd);
       break;
     default:
       break;
@@ -241,8 +252,7 @@ bool isdir (int fd){
 }
 
 int inumber (int fd){
-  return 0;
-
+  return inode_get_inumber(file_get_inode(get_fd_file(thread_current(), fd)->file));
 }
 
 /* Kernel implementation of the halt syscall */
@@ -313,6 +323,7 @@ create (const char *file, unsigned initial_size)
   lock_acquire (&file_lock);
   bool ret = filesys_create (file, initial_size);
   lock_release (&file_lock);
+  // fsutil_ls(NULL);
   return ret;
 }
 
