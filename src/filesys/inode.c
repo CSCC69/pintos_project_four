@@ -229,6 +229,7 @@ inode_open (block_sector_t sector)
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
   inode->sector = sector;
+  // printf("inode_open %p\n", inode);
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
@@ -240,6 +241,7 @@ inode_open (block_sector_t sector)
 struct inode *
 inode_reopen (struct inode *inode)
 {
+  // printf("inode reopen %p\n", inode);
   if (inode != NULL)
     inode->open_cnt++;
   return inode;
@@ -258,6 +260,7 @@ inode_get_inumber (const struct inode *inode)
 void
 inode_close (struct inode *inode) 
 {
+  // printf("inode_close %p\n", inode);
   /* Ignore null pointer. */
   if (inode == NULL)
     return;

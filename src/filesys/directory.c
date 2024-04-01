@@ -41,34 +41,30 @@ bool dir_make(const char *dir) {
   strlcpy(dir_copy, dir, strlen(dir) + 1);
 
   char* last_slash = strrchr(dir_copy, '/');
-  if(last_slash != NULL) 
-    *last_slash = '\0';
-
-  // struct dir *cur = strchr(dir_copy, '/') == NULL ? dir_open_root() : dir_path_lookup(dir_copy);
-
   struct dir *cur;
-  if(dir_copy[0] == '/') {
-    // printf("dir_make: opening root\n");
-    cur = dir_open_root();
+  if(last_slash != NULL){
+    *last_slash = '\0';
+    cur = dir_path_lookup(dir_copy);
   } else{
-    // printf("dir_make: opening cwd %p root is %p\n", thread_current()->cwd, dir_open_root());
-    cur = thread_current()->cwd;
-  }
-
-  if(cur == NULL){
-    return false;
+    cur = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
 
   block_sector_t inode_sector = 0;
-
-  bool success = (dir != NULL
+  bool success = (cur != NULL
                   && free_map_allocate (1, &inode_sector)
                   && dir_create(inode_sector)
-                  && dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector))
-                  && dir_add(dir_open(inode_open(inode_sector)), ".", inode_sector)
-                  && dir_add(dir_open(inode_open(inode_sector)), "..", inode_get_inumber(cur->inode));
+                  && dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector));
+  struct dir *new_dir = dir_open(inode_open(inode_sector));
+  success = (success
+             && dir_add(new_dir, ".", inode_sector)
+             && dir_add(new_dir, "..", inode_get_inumber(cur->inode)));
 
-    
+  if(new_dir != NULL)
+    dir_close(new_dir);
+
+  if(cur != thread_current()->cwd)
+    dir_close(cur);
+
   return success;
 }
 
@@ -289,6 +285,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
+  // printf("dir_remove %s\n", name);
   struct dir_entry e;
   struct inode *inode = NULL;
   bool success = false;
@@ -303,8 +300,9 @@ dir_remove (struct dir *dir, const char *name)
 
   /* Open inode. */
   inode = inode_open (e.inode_sector);
-  if (inode == NULL || (inode_open_cnt(inode) > 1 && inode_is_dir(inode)))
-    goto done;
+  if (inode == NULL || (inode_open_cnt(inode) > 1 && inode_is_dir(inode))){
+    printf("going to done %d %d %d %d\n", inode == NULL, inode_open_cnt(inode) > 1,inode_open_cnt(inode),  inode_is_dir(inode));
+    goto done;}
 
   /* Erase directory entry. */
   e.in_use = false;

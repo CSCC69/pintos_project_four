@@ -126,14 +126,25 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
-  char *path_copy = malloc(sizeof(name) + 1);
-  strlcpy(path_copy, name, sizeof(path_copy));
-  if(dir == dir_path_lookup(path_copy))
-    return false;
-  bool success = dir != NULL && dir_remove (dir, name);
-  if (dir != thread_current()->cwd)
-    dir_close (dir); 
+  // printf("filesys_remove: %s\n", name);
+
+  char *dir_copy = malloc(strlen(name) + 1);
+  strlcpy(dir_copy, name, strlen(name) + 1);
+
+  char* last_slash = strrchr(dir_copy, '/');
+  struct dir *cur;
+  
+  if(last_slash != NULL){
+    *last_slash = '\0';
+    cur = dir_path_lookup(dir_copy);
+  } else{
+    cur = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
+  }
+
+  bool success = cur != NULL && dir_remove (cur, last_slash == NULL ? name : last_slash + sizeof(char));
+
+  if(cur != thread_current()->cwd)
+    dir_close (cur); 
 
   return success;
 }
