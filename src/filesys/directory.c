@@ -6,6 +6,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "filesys/free-map.h" 
 
 /* A directory. */
 struct dir 
@@ -29,13 +30,12 @@ bool dir_change(const char *dir) {
   if(cur == NULL){
     return false;
   }
-  PANIC("CHANGING DIRECTORIES");
   thread_current()->cwd = cur;
   return true;
 }
 
 bool dir_make(const char *dir) {
-  printf("Starting dir_make\n");
+  // printf("Thread %s starting dir_make\n", thread_current()->name);
   char *dir_copy = malloc(strlen(dir) + 1);
   strlcpy(dir_copy, dir, strlen(dir_copy));
 
@@ -47,15 +47,15 @@ bool dir_make(const char *dir) {
 
   struct dir *cur;
   if(dir_copy[0] == '/') {
-    printf("dir_make: opening root\n");
+    // printf("dir_make: opening root\n");
     cur = dir_open_root();
   } else{
-    printf("dir_make: opening cwd %p root is %p\n", thread_current()->cwd, dir_open_root());
+    // printf("dir_make: opening cwd %p root is %p\n", thread_current()->cwd, dir_open_root());
     cur = thread_current()->cwd;
   }
  if (cur == NULL) {
   cur = dir_open_root();
-  printf("dir_make: opening root\n");
+  // printf("dir_make: opening root\n");
  }
    
 
@@ -67,8 +67,8 @@ bool dir_make(const char *dir) {
   free_map_allocate (1, &inode_sector);
   dir_create(inode_sector);
   dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector);
-  printf("made dir %s in sector %d in dir %p;\n", dir_copy, inode_sector, cur);
-  printf("trying to lookup %d using %s in dir %p\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char), cur);
+  // printf("made dir %s in sector %d in dir %p;\n", dir_copy, inode_sector, cur);
+  // printf("trying to lookup %d using %s in dir %p\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char), cur);
     
   return true;
 }
@@ -81,25 +81,25 @@ struct dir *dir_path_lookup(const char *dir_path) {
   struct dir *cur;
 
   if(dir_copy[0] == '/') {
-    printf("dir_path_lookup: opening root\n");
+    // printf("dir_path_lookup: opening root\n");
     cur = dir_open_root();
   } else{
-    printf("dir_path_lookup: thread %s opening cwd %p\n", thread_current()->name, thread_current()->cwd);
+    // printf("dir_path_lookup: thread %s opening cwd %p\n", thread_current()->name, thread_current()->cwd);
     cur = thread_current()->cwd;
   }
  if (cur == NULL) {
   cur = dir_open_root();
-  printf("dir_path_lookup: opening root\n");
+  // printf("dir_path_lookup: opening root\n");
  }
    
 
   for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
-    printf ("trynna find '%s'\n", token);
+    // printf ("trynna find '%s'\n", token);
       //check if cur contains token
       struct dir *dir = malloc(sizeof(struct dir));
       struct dir_entry ep;
-      if(!lookup(cur, token, &ep, dir->pos)) {
-        printf("couldnt find %s\n", token);
+      if(!lookup(cur, token, &ep, &dir->pos)) {
+        // printf("couldnt find %s\n", token);
         return NULL;
       }
       dir->inode = inode_open(ep.inode_sector);
@@ -230,7 +230,7 @@ dir_lookup (const struct dir *dir, const char *name,
 bool
 dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 {
-  printf("dir_add %s\n", name);
+  // printf("dir_add %s\n", name);
   struct dir_entry e;
   off_t ofs;
   bool success = false;

@@ -53,9 +53,9 @@ filesys_create (const char *name, off_t initial_size)
 
   char* last_slash = strrchr(dir_copy, '/');
   if(last_slash != NULL) {
-    printf("found last slash %s\n", last_slash);
+    // printf("found last slash %s\n", last_slash);
     *last_slash = '\0';
-    printf("last slash %s dir copy is now: %s\n", last_slash, dir_copy);
+    // printf("last slash %s dir copy is now: %s\n", last_slash, dir_copy);
   }
   
   
@@ -67,7 +67,7 @@ filesys_create (const char *name, off_t initial_size)
       dir = thread_current()->cwd;
     }
   } else {
-    printf("looking up dir %s\n", dir_copy);
+    // printf("looking up dir %s\n", dir_copy);
      dir = dir_path_lookup(dir_copy);
   }
   // bool success = (dir != NULL
@@ -76,13 +76,13 @@ filesys_create (const char *name, off_t initial_size)
   //                 && dir_add (dir, name, inode_sector));
 
   bool success = dir != NULL;
-  printf("%d\n", success);
+  // printf("%d\n", success);
   success = success && free_map_allocate (1, &inode_sector);
-  printf("%d\n", success);
+  // printf("%d\n", success);
   success = success && inode_create (inode_sector, initial_size);
-  printf("%d\n", success);
+  // printf("%d\n", success);
   success = success && dir_add (dir, last_slash == NULL ? name : last_slash + sizeof(char), inode_sector);
-  printf("%d\n", success);
+  // printf("%d\n", success);
 
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
@@ -104,7 +104,7 @@ filesys_open (const char *name)
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
-  dir_close (dir);
+  // dir_close (dir);
 
   return file_open (inode);
 }
