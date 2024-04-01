@@ -78,31 +78,23 @@ struct dir *dir_path_lookup(const char *dir_path) {
   struct dir *cur;
 
   if(dir_copy[0] == '/') {
-    // printf("dir_path_lookup: opening root\n");
     cur = dir_open_root();
   } else{
-    // printf("dir_path_lookup: thread %s opening cwd %p\n", thread_current()->name, thread_current()->cwd);
     cur = thread_current()->cwd;
   }
  if (cur == NULL) {
   cur = dir_open_root();
-  // printf("dir_path_lookup: opening root\n");
  }
    
 
   for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
-    // printf ("trynna find '%s'\n", token);
-      //check if cur contains token
       struct dir *dir = malloc(sizeof(struct dir));
       struct dir_entry ep;
       if(!lookup(cur, token, &ep, &dir->pos)) {
-        // printf("couldnt find %s\n", token);
         return NULL;
       }
       dir->inode = inode_open(ep.inode_sector);
-
       cur = dir;
-      //cur = token
   }
   return cur;
 }

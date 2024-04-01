@@ -60,17 +60,19 @@ filesys_create (const char *name, off_t initial_size)
   }
   
   
-  struct dir *dir;
-  if(last_slash == NULL) {
-    if(thread_current()->cwd == NULL) {
-      dir = dir_open_root();
-    } else {
-      dir = thread_current()->cwd;
-    }
-  } else {
-    // printf("looking up dir %s\n", dir_copy);
-     dir = dir_path_lookup(dir_copy);
-  }
+  // struct dir *dir;
+  // if(last_slash == NULL) {
+  //   if(thread_current()->cwd == NULL) {
+  //     dir = dir_open_root();
+  //   } else {
+  //     dir = thread_current()->cwd;
+  //   }
+  // } else {
+  //   // printf("looking up dir %s\n", dir_copy);
+  //    dir = dir_path_lookup(dir_copy);
+  // }
+  struct dir *dir = dir_path_lookup(dir_copy);
+
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, false)
@@ -101,6 +103,9 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
+  if(strcmp(name, "/") == 0) {
+    return file_open(inode_open(ROOT_DIR_SECTOR));
+  }
   struct dir *dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   struct inode *inode = NULL;
 
@@ -120,8 +125,10 @@ bool
 filesys_remove (const char *name) 
 {
   struct dir *dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
+  // if(dir == dir_path_lookup(name));
   bool success = dir != NULL && dir_remove (dir, name);
-  // dir_close (dir); 
+  if (dir != thread_current()->cwd)
+    dir_close (dir); 
 
   return success;
 }

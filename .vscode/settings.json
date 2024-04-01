@@ -18,6 +18,11 @@
         "istream": "c",
         "filesys.h": "c",
         "main.h": "c",
-        "off_t.h": "c"
+        "off_t.h": "c",
+        "algorithm": "c",
+        "cstdio": "c",
+        "typeinfo": "c",
+        "unordered_map": "c",
+        "__string": "c"
     }
 }
