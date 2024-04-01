@@ -303,7 +303,7 @@ dir_remove (struct dir *dir, const char *name)
 
   /* Open inode. */
   inode = inode_open (e.inode_sector);
-  if (inode == NULL || inode_open_cnt(inode) > 1)
+  if (inode == NULL || (inode_open_cnt(inode) > 1 && inode_is_dir(inode)))
     goto done;
 
   /* Erase directory entry. */
