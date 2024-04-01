@@ -360,7 +360,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   uint8_t *bounce = NULL;
 
   if (inode->deny_write_cnt) {
-    printf("inode->deny_write_cnt = %d\n", inode->deny_write_cnt);
     return 0;
   }
 
