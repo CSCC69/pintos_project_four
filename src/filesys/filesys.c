@@ -96,7 +96,7 @@ filesys_open (const char *name)
   struct inode *inode = NULL;
 
   if (dir != NULL)
-    dir_lookup (dir, name, &inode);
+    dir_lookup (dir, last_slash == NULL ? name : last_slash + sizeof(char), &inode);
   if (dir != thread_current()->cwd)
     dir_close (dir);
 
