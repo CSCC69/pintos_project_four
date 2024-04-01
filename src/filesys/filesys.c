@@ -111,7 +111,10 @@ bool
 filesys_remove (const char *name) 
 {
   struct dir *dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
-  // if(dir == dir_path_lookup(name));
+  char *path_copy = malloc(sizeof(name) + 1);
+  strlcpy(path_copy, name, sizeof(path_copy));
+  if(dir == dir_path_lookup(path_copy))
+    return false;
   bool success = dir != NULL && dir_remove (dir, name);
   if (dir != thread_current()->cwd)
     dir_close (dir); 
