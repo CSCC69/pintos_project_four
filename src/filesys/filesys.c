@@ -74,7 +74,7 @@ filesys_create (const char *name, off_t initial_size)
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, false)
-                  && dir_add (dir, name, inode_sector));
+                  && dir_add (dir, last_slash == NULL ? name : last_slash + sizeof(char), inode_sector));
 
   // bool success = dir != NULL;
   // // printf("%d\n", success);
