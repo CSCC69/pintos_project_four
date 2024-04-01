@@ -82,7 +82,17 @@ filesys_open (const char *name)
   if(strcmp(name, "/") == 0) {
     return file_open(inode_open(ROOT_DIR_SECTOR));
   }
-  struct dir *dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
+  
+  char *dir_copy = malloc(strlen(name) + 1);
+  strlcpy(dir_copy, name, strlen(dir_copy));
+
+  char* last_slash = strrchr(dir_copy, '/');
+  if(last_slash != NULL) {
+    *last_slash = '\0';
+  }
+
+  struct dir *dir = dir_path_lookup(dir_copy);
+
   struct inode *inode = NULL;
 
   if (dir != NULL)

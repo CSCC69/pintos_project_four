@@ -74,6 +74,10 @@ struct dir *dir_path_lookup(char *dir_path) {
   if (strrchr(dir_path, '/') == NULL){
     return dir_open_root();
   }
+  if (strcmp(dir_path, "") == 0){
+    return thread_current()->cwd;
+  }
+  
   char *token, *save_ptr;
 
   struct dir *cur;
