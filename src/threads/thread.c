@@ -486,6 +486,8 @@ init_thread (struct thread *t, const char *name, int priority,
   t->magic = THREAD_MAGIC;
   t->parent = parent;
 
+  t->cwd = NULL;
+
   sema_init (&t->wait_sema, 0);
   sema_init (&t->exec_sema, 0);
 

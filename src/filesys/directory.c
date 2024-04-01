@@ -29,11 +29,13 @@ bool dir_change(const char *dir) {
   if(cur == NULL){
     return false;
   }
+  PANIC("CHANGING DIRECTORIES");
   thread_current()->cwd = cur;
   return true;
 }
 
 bool dir_make(const char *dir) {
+  printf("Starting dir_make\n");
   char *dir_copy = malloc(strlen(dir) + 1);
   strlcpy(dir_copy, dir, strlen(dir_copy));
 
@@ -48,7 +50,7 @@ bool dir_make(const char *dir) {
     printf("dir_make: opening root\n");
     cur = dir_open_root();
   } else{
-    printf("dir_make: opening cwd %p\n", thread_current()->cwd->inode);
+    printf("dir_make: opening cwd %p root is %p\n", thread_current()->cwd, dir_open_root());
     cur = thread_current()->cwd;
   }
  if (cur == NULL) {
@@ -65,8 +67,8 @@ bool dir_make(const char *dir) {
   free_map_allocate (1, &inode_sector);
   dir_create(inode_sector);
   dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector);
-  printf("made dir %s\n", dir_copy);
-  printf("trying to lookup %d using %s\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char));
+  printf("made dir %s in sector %d in dir %p;\n", dir_copy, inode_sector, cur);
+  printf("trying to lookup %d using %s in dir %p\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char), cur);
     
   return true;
 }
@@ -82,7 +84,7 @@ struct dir *dir_path_lookup(const char *dir_path) {
     printf("dir_path_lookup: opening root\n");
     cur = dir_open_root();
   } else{
-    printf("dir_path_lookup: opening cwd %p\n", thread_current()->cwd->inode);
+    printf("dir_path_lookup: thread %s opening cwd %p\n", thread_current()->name, thread_current()->cwd);
     cur = thread_current()->cwd;
   }
  if (cur == NULL) {
@@ -94,15 +96,15 @@ struct dir *dir_path_lookup(const char *dir_path) {
   for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
     printf ("trynna find '%s'\n", token);
       //check if cur contains token
-      struct dir dir;
+      struct dir *dir = malloc(sizeof(struct dir));
       struct dir_entry ep;
-      if(!lookup(cur, token, &ep, &dir.pos)) {
+      if(!lookup(cur, token, &ep, dir->pos)) {
         printf("couldnt find %s\n", token);
         return NULL;
       }
-      dir.inode = inode_open(ep.inode_sector);
+      dir->inode = inode_open(ep.inode_sector);
 
-      cur = &dir;
+      cur = dir;
       //cur = token
   }
   return cur;

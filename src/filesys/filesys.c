@@ -81,7 +81,7 @@ filesys_create (const char *name, off_t initial_size)
   printf("%d\n", success);
   success = success && inode_create (inode_sector, initial_size);
   printf("%d\n", success);
-  success = success && dir_add (dir, name, inode_sector);
+  success = success && dir_add (dir, last_slash == NULL ? name : last_slash + sizeof(char), inode_sector);
   printf("%d\n", success);
 
   if (!success && inode_sector != 0) 

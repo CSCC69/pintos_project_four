@@ -77,6 +77,7 @@ start_process (void *prog_args_)
 
   //thread_current()->cwd = thread_current()->parent->cwd;
   thread_current()->cwd = dir_open_root();
+  printf("start_process giving thread %s cwd %p\n", thread_current()->name, thread_current()->cwd);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
