@@ -48,44 +48,20 @@ bool
 filesys_create (const char *name, off_t initial_size) 
 {
   block_sector_t inode_sector = 0;
-  // struct dir *dir = dir_open_root ();
   char *dir_copy = malloc(strlen(name) + 1);
   strlcpy(dir_copy, name, strlen(dir_copy));
 
   char* last_slash = strrchr(dir_copy, '/');
   if(last_slash != NULL) {
-    // printf("found last slash %s\n", last_slash);
     *last_slash = '\0';
-    // printf("last slash %s dir copy is now: %s\n", last_slash, dir_copy);
   }
-  
-  
-  // struct dir *dir;
-  // if(last_slash == NULL) {
-  //   if(thread_current()->cwd == NULL) {
-  //     dir = dir_open_root();
-  //   } else {
-  //     dir = thread_current()->cwd;
-  //   }
-  // } else {
-  //   // printf("looking up dir %s\n", dir_copy);
-  //    dir = dir_path_lookup(dir_copy);
-  // }
+
   struct dir *dir = dir_path_lookup(dir_copy);
 
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, false)
                   && dir_add (dir, last_slash == NULL ? name : last_slash + sizeof(char), inode_sector));
-
-  // bool success = dir != NULL;
-  // // printf("%d\n", success);
-  // success = success && free_map_allocate (1, &inode_sector);
-  // // printf("%d\n", success);
-  // success = success && inode_create (inode_sector, initial_size);
-  // // printf("%d\n", success);
-  // success = success && dir_add (dir, last_slash == NULL ? name : last_slash + sizeof(char), inode_sector);
-  // // printf("%d\n", success);
 
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);

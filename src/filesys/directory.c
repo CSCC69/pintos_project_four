@@ -70,14 +70,15 @@ bool dir_make(const char *dir) {
   return success;
 }
 
-struct dir *dir_path_lookup(const char *dir_path) {
-  char *dir_copy = malloc(strlen(dir_path) + 1);
-  strlcpy(dir_copy, dir_path, strlen(dir_copy));
+struct dir *dir_path_lookup(char *dir_path) {
+  if (strrchr(dir_path, '/') == NULL){
+    return dir_open_root();
+  }
   char *token, *save_ptr;
 
   struct dir *cur;
 
-  if(dir_copy[0] == '/') {
+  if(dir_path[0] == '/') {
     cur = dir_open_root();
   } else{
     cur = thread_current()->cwd;
@@ -87,7 +88,7 @@ struct dir *dir_path_lookup(const char *dir_path) {
  }
    
 
-  for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
+  for (token = strtok_r (dir_path, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
       struct dir *dir = malloc(sizeof(struct dir));
       struct dir_entry ep;
       if(!lookup(cur, token, &ep, &dir->pos)) {
