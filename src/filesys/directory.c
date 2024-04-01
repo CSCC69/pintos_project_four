@@ -59,13 +59,15 @@ bool dir_make(const char *dir) {
   }
 
   block_sector_t inode_sector = 0;
-  free_map_allocate (1, &inode_sector);
-  dir_create(inode_sector);
-  dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector);
+
+  bool success = (dir != NULL
+                  && free_map_allocate (1, &inode_sector)
+                  && dir_create(inode_sector)
+                  && dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector));
   // printf("made dir %s in sector %d in dir %p;\n", dir_copy, inode_sector, cur);
   // printf("trying to lookup %d using %s in dir %p\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char), cur);
     
-  return true;
+  return success;
 }
 
 struct dir *dir_path_lookup(const char *dir_path) {
@@ -110,7 +112,7 @@ struct dir *dir_path_lookup(const char *dir_path) {
 bool
 dir_create (block_sector_t sector)
 {
-  return inode_create (sector, 0);
+  return inode_create (sector, 0, true);
 }
 
 /* Opens and returns the directory for the given INODE, of which

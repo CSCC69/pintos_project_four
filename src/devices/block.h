@@ -14,7 +14,7 @@
 /* Number of block pointers (sector numbers) that can fit in a block */
 #define BLOCK_POINTERS_PER_BLOCK (BLOCK_SECTOR_SIZE / sizeof(uint32_t))
 
-#define NUM_DIRECT_BLOCKS 123
+#define NUM_DIRECT_BLOCKS 122
 #define INDIRECT_BLOCK NUM_DIRECT_BLOCKS
 #define DOUBLE_INDIRECT_BLOCK (INDIRECT_BLOCK + 1)
 #define NUM_BLOCKS (DOUBLE_INDIRECT_BLOCK + 1)

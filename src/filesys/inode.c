@@ -20,6 +20,7 @@ struct inode_disk
     block_sector_t start;                                 /* First data sector. */
     off_t length;                                         /* File size in bytes. */
     unsigned magic;                                       /* Magic number. */
+    bool is_dir;                                          /* True if inode is a directory. */
     block_sector_t block_pointers[NUM_DIRECT_BLOCKS + 2]; /* Block pointers. */ 
   };
 
@@ -99,7 +100,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
   // printf("inode_create\n");
   struct inode_disk *disk_inode = NULL;
@@ -114,6 +115,7 @@ inode_create (block_sector_t sector, off_t length)
 
   size_t sectors = bytes_to_sectors (length);
   disk_inode->length = length;
+  disk_inode->is_dir = is_dir;
   disk_inode->magic = INODE_MAGIC;
 
   if (sectors > 0){
@@ -524,4 +526,8 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
   return true;
 
   //PANIC("allocated_sectors: %d, zero_sectors: %d, data_sectors: %d", allocated_sectors, zero_sectors, data_sectors);
+}
+
+bool is_dir(struct inode *inode){
+  return inode->data.is_dir;
 }
