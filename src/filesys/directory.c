@@ -53,11 +53,6 @@ bool dir_make(const char *dir) {
     // printf("dir_make: opening cwd %p root is %p\n", thread_current()->cwd, dir_open_root());
     cur = thread_current()->cwd;
   }
- if (cur == NULL) {
-  cur = dir_open_root();
-  // printf("dir_make: opening root\n");
- }
-   
 
   if(cur == NULL){
     return false;
