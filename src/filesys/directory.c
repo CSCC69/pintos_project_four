@@ -26,10 +26,15 @@ static bool lookup (const struct dir *dir, const char *name, struct dir_entry *e
 
 bool dir_change(const char *dir) {
   struct dir *cur = dir_path_lookup(dir);
-  if(cur == NULL){
-    return false;
-  }
-  thread_current()->cwd = cur;
+  printf("cur:%p", cur->inode);
+//  if(cur == NULL){
+//    return false;
+//  }
+  printf("curafter:%p", cur->inode);
+  struct dir* copy = calloc(1, sizeof(struct dir));
+  copy->inode = cur->inode;
+  copy->pos = cur->pos;
+  thread_current()->cwd = copy;
   return true;
 }
 
@@ -51,10 +56,6 @@ bool dir_make(const char *dir) {
     printf("dir_make: opening cwd %p\n", thread_current()->cwd->inode);
     cur = thread_current()->cwd;
   }
- if (cur == NULL) {
-  cur = dir_open_root();
-  printf("dir_make: opening root\n");
- }
    
 
   if(cur == NULL){
@@ -64,6 +65,7 @@ bool dir_make(const char *dir) {
   block_sector_t inode_sector = 0;
   free_map_allocate (1, &inode_sector);
   dir_create(inode_sector);
+  cur = dir_open_root();
   dir_add(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), inode_sector);
   printf("made dir %s\n", dir_copy);
   printf("trying to lookup %d using %s\n", lookup(cur, last_slash == NULL ? dir_copy : last_slash + sizeof(char), NULL, NULL), last_slash == NULL ? dir_copy : last_slash + sizeof(char));
@@ -89,20 +91,21 @@ struct dir *dir_path_lookup(const char *dir_path) {
   cur = dir_open_root();
   printf("dir_path_lookup: opening root\n");
  }
-   
 
+  cur = dir_open_root();
   for (token = strtok_r (dir_copy, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
-    printf ("trynna find '%s'\n", token);
+    printf ("tryna find '%s'\n", token);
       //check if cur contains token
-      struct dir dir;
+      struct dir *dir = malloc(sizeof(struct dir));
       struct dir_entry ep;
-      if(!lookup(cur, token, &ep, &dir.pos)) {
+      if(!lookup(cur, token, &ep, &dir->pos)) {
         printf("couldnt find %s\n", token);
         return NULL;
       }
-      dir.inode = inode_open(ep.inode_sector);
+    printf("epinodesector:%d\n", ep.inode_sector);
+      dir->inode = inode_open(ep.inode_sector);
 
-      cur = &dir;
+      cur = dir;
       //cur = token
   }
   return cur;
