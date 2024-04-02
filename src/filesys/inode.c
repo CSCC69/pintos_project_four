@@ -368,7 +368,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt) {
     return 0;
   }
-  if (bytes_to_sectors(offset+size) >= bytes_to_sectors(inode->data.length))
+  if (bytes_to_sectors(offset+size) > bytes_to_sectors(inode->data.length))
     {
       if (!inode_grow(inode, size, offset)) {
         // printf("inode_grow failed\n");
@@ -377,6 +377,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
         
     } else {
       inode->data.length = offset + size > inode->data.length ? offset + size : inode->data.length;
+      block_write (fs_device, inode->sector, &inode->data);
     }
     //PANIC("want to write to sector %d but file has %d sectors allocated, need to grow file by %d sectors", 
     //      bytes_to_sectors(offset), bytes_to_sectors(inode->data.length), bytes_to_sectors(offset - inode->data.length) + bytes_to_sectors(size));
@@ -489,7 +490,7 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
   //TODO: fix the compiler errors and warnings no clue how this passes more tests
   if (sectors >= NUM_DIRECT_BLOCKS) {
     block_sector_t *indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
-    if(indirect_block = disk_inode->block_pointers[INDIRECT_BLOCK] == 0){
+    if(disk_inode->block_pointers[INDIRECT_BLOCK] == 0){
       free_map_allocate(1, &disk_inode->block_pointers[INDIRECT_BLOCK]);
     } else {
       block_read(fs_device, disk_inode->block_pointers[INDIRECT_BLOCK], indirect_block);
@@ -506,7 +507,7 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
 
   if (sectors >= NUM_DIRECT_BLOCKS + NUM_INDIRECT_BLOCKS) {
     block_sector_t *double_indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
-    if(double_indirect_block = disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK] == 0) {
+    if(disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK] == 0) {
       free_map_allocate(1, &disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK]);
     } else {
       block_read(fs_device, disk_inode->block_pointers[DOUBLE_INDIRECT_BLOCK], double_indirect_block);
@@ -514,7 +515,7 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
 
     for (size_t j = 0; j < (sectors - NUM_DIRECT_BLOCKS - NUM_INDIRECT_BLOCKS) / BLOCK_POINTERS_PER_BLOCK; j++) {
       block_sector_t *indirect_block = calloc(1, sizeof(uint32_t) * BLOCK_POINTERS_PER_BLOCK);
-      if(indirect_block = double_indirect_block[j] == 0) {
+      if(double_indirect_block[j] == 0) {
         free_map_allocate(1, &double_indirect_block[j]);
       } else {
         block_read(fs_device, double_indirect_block[j], indirect_block);
