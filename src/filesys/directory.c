@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <list.h>
+#include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
@@ -323,12 +324,15 @@ dir_remove (struct dir *dir, const char *name)
    contains no more entries. */
 bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
-{
+{}
+
+bool fd_readdir(int fd, char *name){
+  struct fd_file *fd_file = get_fd_file(thread_current(), fd);
   struct dir_entry e;
 
-  while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
+  while (inode_read_at (file_get_inode(fd_file->file), &e, sizeof e, file_get_pos(fd_file->file)) == sizeof e) 
     {
-      dir->pos += sizeof e;
+      file_set_pos(fd_file->file, sizeof e);
       if (e.in_use && strcmp(e.name, ".") != 0 && strcmp(e.name, "..") != 0)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
@@ -336,13 +340,4 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
-}
-
-bool fd_readdir(int fd, char *name){
-  struct fd_file *fd_file = get_fd_file(thread_current(), fd);
-  struct dir *dir = malloc(sizeof(struct dir));
-  dir->inode = file_get_inode(fd_file->file);
-  dir->pos = 0;
-
-  return dir_readdir(dir, name);
 }

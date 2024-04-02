@@ -1,6 +1,7 @@
 #include "filesys/file.h"
 #include <debug.h>
 #include "filesys/inode.h"
+#include "filesys/off_t.h"
 #include "threads/malloc.h"
 
 /* An open file. */
@@ -58,6 +59,18 @@ struct inode *
 file_get_inode (struct file *file) 
 {
   return file->inode;
+}
+
+off_t
+file_get_pos (struct file *file)
+{
+  return file->pos;
+}
+
+void
+file_set_pos (struct file *file, off_t pos)
+{
+  file->pos += pos;
 }
 
 /* Reads SIZE bytes from FILE into BUFFER,
