@@ -368,7 +368,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (inode->deny_write_cnt) {
     return 0;
   }
-  if (bytes_to_sectors(offset+size) > bytes_to_sectors(inode->data.length))
+  if (bytes_to_sectors(offset+size) >= bytes_to_sectors(inode->data.length))
     {
       if (!inode_grow(inode, size, offset)) {
         // printf("inode_grow failed\n");

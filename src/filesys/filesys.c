@@ -108,7 +108,6 @@ filesys_open (const char *name)
     dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
 
-
   struct inode *inode = NULL;
 
   if (dir != NULL)
