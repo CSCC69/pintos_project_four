@@ -32,6 +32,8 @@ bool dir_change(const char *dir) {
   if(cur == NULL){
     return false;
   }
+  if(thread_current()->cwd != NULL)
+    dir_close(thread_current()->cwd);
   thread_current()->cwd = cur;
   return true;
 }
@@ -102,6 +104,8 @@ struct dir *dir_path_lookup(char *dir_path) {
         return NULL;
       }
       dir->inode = inode_open(ep.inode_sector);
+      if(cur != thread_current()->cwd)
+        dir_close(cur);
       return dir;
   }
    
@@ -114,6 +118,7 @@ struct dir *dir_path_lookup(char *dir_path) {
         return NULL;
       }
       dir->inode = inode_open(ep.inode_sector);
+      inode_close(cur->inode);
       cur = dir;
   }
   return cur;
