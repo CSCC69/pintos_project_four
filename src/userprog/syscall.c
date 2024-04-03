@@ -234,12 +234,12 @@ syscall_handler (struct intr_frame *f)
 }
 
 bool chdir (const char *dir){
-  if(dir == NULL || dir == "\0") //TODO
+  if(dir == NULL || strlen(dir) == 0)
     return false;
   return dir_change(dir);
 }
 bool mkdir (const char *dir){
-  if(dir == NULL || strcmp(dir, "") == 0)
+  if(dir == NULL || strlen(dir) == 0)
     return false;
   return dir_make(dir);
 }
