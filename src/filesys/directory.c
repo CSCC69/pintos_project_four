@@ -120,13 +120,12 @@ struct dir *dir_path_lookup(char *dir_path) {
   for (token = strtok_r (dir_path, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
       struct dir_entry ep;
       off_t pos;
-      if(!lookup(cur, token, &ep, &pos)) {
-        // printf("dir_path_lookup: lookup2 failed\n");
+      if (!lookup(cur, token, &ep, &pos))
         return NULL;
-      }
       struct dir *dir = dir_open(inode_open(ep.inode_sector));
       dir->pos = pos;
-      dir_close(cur);
+      if(cur != thread_current()->cwd)
+        dir_close(cur);
       cur = dir;
   }
   return cur;
