@@ -21,6 +21,9 @@ FirstName LastName <email@domain.example>
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
 
+https://en.wikipedia.org/wiki/Inode_pointer_structure
+https://elixir.bootlin.com/linux/v4.7/source/fs/ext2/ext2.h#L220
+
              INDEXED AND EXTENSIBLE FILES
              ============================
 
@@ -32,6 +35,10 @@ FirstName LastName <email@domain.example>
 
 >> A2: What is the maximum size of a file supported by your inode
 >> structure?  Show your work.
+
+Our on-disk inode has 123 direct blocks, one indirect block, and one doubly-indirect block.
+Each block references a sector of size 512 bytes.
+Therefore the maximum file size is 123*512 + 128*512 + 128^2*512 = 8517120 bytes ~ 8.5 megabytes.
 
 ---- SYNCHRONIZATION ----
 
@@ -60,6 +67,11 @@ FirstName LastName <email@domain.example>
 >> structure, and what advantages and disadvantages does your
 >> structure have, compared to a multilevel index?
 
+Yes, our inode structure is a multilevel index. We chose a combination of direct, indirect, and doubly indirect blocks such that we could support a file size of over 8Mb, which was a project requirement.
+Specifically, we used as many direct blocks as could fit in the 512 bytes allocated to an inode on disk, as the physical sector size is also 512 bytes so the space will be allocated on disk regardless.
+This increases efficiency as we've maximized how large a file can be before we need to allocate additional blocks, which is especially useful since the majority of files on disk are small files. We
+went with one indirect and one doubly indirect block because that was enough to reach the required minimum file size, as described in A2.
+
                 SUBDIRECTORIES
                 ==============
 
@@ -74,6 +86,14 @@ FirstName LastName <email@domain.example>
 >> B2: Describe your code for traversing a user-specified path.  How
 >> do traversals of absolute and relative paths differ?
 
+Our code for traversing a user-specified path is implemented in dir_path_lookup. First, we determine if the path is absolute or relative, indicated by the presence or absence of a leading '/'.
+If absolute, we set the current directory as the root directory. If relative, we use the current thread's working directory.
+
+Next, if the path doesn't contain a slash at all, it's only a directory name, and we simply look for it in the current directory, returning it, or NULL if not found.
+
+Otherwise, we must traverse the directory tree to find the specified directory. Using strtok, we parse the path, find each directory name in the current directory, and update the current directory
+to be the directory we just found. This is repeated until we have gone through the entire path, and we return the final directory, or NULL if at any point a directory wasn't found.
+
 ---- SYNCHRONIZATION ----
 
 >> B4: How do you prevent races on directory entries?  For example,
@@ -86,11 +106,17 @@ FirstName LastName <email@domain.example>
 >> working directory?  If so, what happens to that process's future
 >> file system operations?  If not, how do you prevent it?
 
+No, our implementation does not allow a directory to be removed if a process has opened it, or if it's set as a process's current working directory. We prevent this by making use of the dir_remove
+function to delete directories. When a directory is set as a process's current directory, it is opened. Then, dir_remove verifies that the open count of the directory to remove is no greater than 1,
+and won't remove it if it is currently open in another process.
+
 ---- RATIONALE ----
 
 >> B6: Explain why you chose to represent the current directory of a
 >> process the way you did.
 
+We chose to represent the current directory of a processes as a struct dir, as opposed to other representations like a path string, as it allows for easy use in other functions, such as dir_path_lookup
+and dir_close without additional repeated parsing.
 
                SURVEY QUESTIONS
                ================
