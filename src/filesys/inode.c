@@ -9,6 +9,7 @@
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
 #include "stdio.h"
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -40,6 +41,9 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+    struct lock grow_lock;
+    struct lock write_end_lock;
+    struct lock dir_lock;
     struct inode_disk data;             /* Inode content. */
   };
 
@@ -235,6 +239,9 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  lock_init(&inode->grow_lock);
+  lock_init(&inode->dir_lock);
+  lock_init(&inode->write_end_lock);
   block_read (fs_device, inode->sector, &inode->data);
   return inode;
 }
@@ -368,15 +375,18 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
   uint8_t *bounce = NULL;
-  // printf("inode_write_at offset = %d, size = %d\n", offset, size);
 
   if (inode->deny_write_cnt) {
     return 0;
   }
+  bool need_grow = false;
   if (bytes_to_sectors(offset+size) > bytes_to_sectors(inode->data.length))
     {
+      need_grow = true;
+      lock_acquire(&inode->write_end_lock);
       if (!inode_grow(inode, size, offset)) {
         // printf("inode_grow failed\n");
+        lock_release(&inode->write_end_lock);
         return 0;
       }
         
@@ -442,6 +452,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       // printf("wrote %d bytes\n", bytes_written);
     }
   free (bounce);
+  if (need_grow)
+    lock_release(&inode->write_end_lock);
   // if(bytes_written == 0)
   //   printf("bytes_written = %d inode->data.length = %d size = %d\n", bytes_written, inode->data.length, size);
   return bytes_written;
@@ -478,6 +490,7 @@ bool
 inode_grow(struct inode *inode, off_t size, off_t offset)
 {
   // printf("inode_grow\n");
+  lock_acquire(&inode->grow_lock);
   size_t allocated_sectors = bytes_to_sectors(inode->data.length);
 
   size_t sectors = bytes_to_sectors(offset + size);
@@ -543,7 +556,8 @@ inode_grow(struct inode *inode, off_t size, off_t offset)
 
   inode->data.length = offset + size > inode->data.length ? offset + size : inode->data.length;
   block_write (fs_device, inode->sector, &inode->data);
-  return true;
+  lock_release(&inode->grow_lock);
+  return true; //TODO return false if osmething filas
 
   //PANIC("allocated_sectors: %d, zero_sectors: %d, data_sectors: %d", allocated_sectors, zero_sectors, data_sectors);
 }
