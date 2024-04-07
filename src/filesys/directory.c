@@ -110,12 +110,13 @@ struct dir *dir_path_lookup(char *dir_path) {
       return NULL;
     }
     struct dir *dir = dir_open(inode_open(ep.inode_sector));
+    lock_acquire(&dir->dir_lock);
     dir->pos = pos;
     if(cur != thread_current()->cwd)
       dir_close(cur);
+    lock_release(&dir->dir_lock);
     return dir;
   }
-   
 
   for (token = strtok_r (dir_path, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
       struct dir_entry ep;
@@ -123,10 +124,12 @@ struct dir *dir_path_lookup(char *dir_path) {
       if (!lookup(cur, token, &ep, &pos))
         return NULL;
       struct dir *dir = dir_open(inode_open(ep.inode_sector));
+      lock_acquire(&dir->dir_lock);
       dir->pos = pos;
       if(cur != thread_current()->cwd)
         dir_close(cur);
       cur = dir;
+      lock_release(&dir->dir_lock);
   }
   return cur;
 }
@@ -255,13 +258,14 @@ dir_lookup (const struct dir *dir, const char *name,
 bool
 dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 {
-  // printf("dir_add %s\n", name);
   struct dir_entry e;
   off_t ofs;
   bool success = false;
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+
+  //lock_acquire(&dir->dir_lock);
 
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
@@ -290,6 +294,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
+  //lock_release(&dir->dir_lock);
   return success;
 }
 
@@ -300,6 +305,7 @@ bool
 dir_remove (struct dir *dir, const char *name) 
 {
   // printf("dir_remove %s\n", name);
+  lock_acquire(&dir->dir_lock);
   struct dir_entry e;
   struct inode *inode = NULL;
   bool success = false;
@@ -314,9 +320,8 @@ dir_remove (struct dir *dir, const char *name)
 
   /* Open inode. */
   inode = inode_open (e.inode_sector);
-  if (inode == NULL || (inode_open_cnt(inode) > 1 && inode_is_dir(inode))){
-    // printf("going to done %d %d %d %d\n", inode == NULL, inode_open_cnt(inode) > 1,inode_open_cnt(inode),  inode_is_dir(inode));
-    goto done;}
+  if (inode == NULL || (inode_open_cnt(inode) > 1 && inode_is_dir(inode)))
+    goto done;
 
   /* Erase directory entry. */
   e.in_use = false;
@@ -329,6 +334,7 @@ dir_remove (struct dir *dir, const char *name)
 
  done:
   inode_close (inode);
+  lock_release(&dir->dir_lock);
   return success;
 }
 
@@ -337,7 +343,7 @@ dir_remove (struct dir *dir, const char *name)
    contains no more entries. */
 bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
-{}
+{} //TODO: used in fsutil_ls, add back?
 
 bool fd_readdir(int fd, char *name){
   struct fd_file *fd_file = get_fd_file(thread_current(), fd);

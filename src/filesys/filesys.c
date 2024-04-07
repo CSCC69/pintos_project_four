@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include "threads/synch.h"
 #include "threads/thread.h"
 #include <stdlib.h>
 
@@ -62,7 +63,6 @@ filesys_create (const char *name, off_t initial_size)
   } else{
     dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
-  ASSERT(dir != NULL);
 
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
