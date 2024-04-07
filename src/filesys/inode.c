@@ -569,3 +569,15 @@ bool inode_is_dir(struct inode *inode){
 int inode_open_cnt(struct inode *inode){
   return inode->open_cnt;
 }
+
+void inode_lock_dir(struct inode *inode) {
+  if (!inode->data.is_dir)
+    PANIC("Directory lock should only be used with directories");
+  lock_acquire(&inode->dir_lock);
+}
+
+void inode_unlock_dir(struct inode *inode) {
+  if (!inode->data.is_dir)
+    PANIC("Directory lock should only be used with directories");
+  lock_release(&inode->dir_lock);
+}
