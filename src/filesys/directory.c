@@ -54,7 +54,7 @@ bool dir_make(const char *dir) {
     cur = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
 
-  lock_acquire(&cur->dir_lock);
+  dir_lock_acquire(cur);
 
   block_sector_t inode_sector = 0;
   bool success = (cur != NULL
@@ -66,7 +66,7 @@ bool dir_make(const char *dir) {
              && dir_add(new_dir, ".", inode_sector)
              && dir_add(new_dir, "..", inode_get_inumber(cur->inode)));
 
-  lock_release(&cur->dir_lock);
+  dir_lock_release(cur);
 
   if(new_dir != NULL)
     dir_close(new_dir);
@@ -110,11 +110,11 @@ struct dir *dir_path_lookup(char *dir_path) {
       return NULL;
     }
     struct dir *dir = dir_open(inode_open(ep.inode_sector));
-    lock_acquire(&dir->dir_lock);
+    dir_lock_acquire(dir);
     dir->pos = pos;
     if(cur != thread_current()->cwd)
       dir_close(cur);
-    lock_release(&dir->dir_lock);
+    dir_lock_release(dir);
     return dir;
   }
 
@@ -124,12 +124,12 @@ struct dir *dir_path_lookup(char *dir_path) {
       if (!lookup(cur, token, &ep, &pos))
         return NULL;
       struct dir *dir = dir_open(inode_open(ep.inode_sector));
-      lock_acquire(&dir->dir_lock);
+      dir_lock_acquire(dir);
       dir->pos = pos;
       if(cur != thread_current()->cwd)
         dir_close(cur);
       cur = dir;
-      lock_release(&dir->dir_lock);
+      dir_lock_release(dir);
   }
   return cur;
 }
@@ -265,8 +265,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-  //lock_acquire(&dir->dir_lock);
-
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
     return false;
@@ -294,7 +292,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
-  //lock_release(&dir->dir_lock);
   return success;
 }
 
@@ -359,4 +356,14 @@ bool fd_readdir(int fd, char *name){
         } 
     }
   return false;
+}
+
+void
+dir_lock_acquire(struct dir *dir) {
+  lock_acquire(&dir->dir_lock);
+}
+
+void
+dir_lock_release(struct dir *dir) {
+  lock_release(&dir->dir_lock);
 }

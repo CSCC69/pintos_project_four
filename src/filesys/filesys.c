@@ -64,6 +64,8 @@ filesys_create (const char *name, off_t initial_size)
     dir = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
 
+  dir_lock_acquire(dir);
+
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, false)
@@ -71,6 +73,9 @@ filesys_create (const char *name, off_t initial_size)
 
   if (!success && inode_sector != 0) 
     free_map_release (inode_sector, 1);
+
+  dir_lock_release(dir);
+
   if (dir != thread_current()->cwd)
     dir_close (dir);
 
