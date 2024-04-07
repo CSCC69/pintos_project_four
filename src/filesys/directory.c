@@ -16,6 +16,7 @@ struct dir
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
+    struct lock dir_lock;
   };
 
 /* A single directory entry. */
@@ -53,6 +54,8 @@ bool dir_make(const char *dir) {
     cur = thread_current()->cwd == NULL ? dir_open_root() : thread_current()->cwd;
   }
 
+  lock_acquire(&cur->dir_lock);
+
   block_sector_t inode_sector = 0;
   bool success = (cur != NULL
                   && free_map_allocate (1, &inode_sector)
@@ -62,6 +65,8 @@ bool dir_make(const char *dir) {
   success = (success
              && dir_add(new_dir, ".", inode_sector)
              && dir_add(new_dir, "..", inode_get_inumber(cur->inode)));
+
+  lock_release(&cur->dir_lock);
 
   if(new_dir != NULL)
     dir_close(new_dir);
@@ -98,28 +103,30 @@ struct dir *dir_path_lookup(char *dir_path) {
  }
 
  if(strrchr(dir_path, '/') == NULL){
-    struct dir *dir = malloc(sizeof(struct dir));
-      struct dir_entry ep;
-      if(!lookup(cur, dir_path, &ep, &dir->pos)) {
-        // printf("dir_path_lookup: lookup1 failed\n");
-        return NULL;
-      }
-      dir->inode = inode_open(ep.inode_sector);
-      if(cur != thread_current()->cwd)
-        dir_close(cur);
-      return dir;
+    struct dir_entry ep;
+    off_t pos;
+    if(!lookup(cur, dir_path, &ep, &pos)) {
+      // printf("dir_path_lookup: lookup1 failed\n");
+      return NULL;
+    }
+    struct dir *dir = dir_open(inode_open(ep.inode_sector));
+    dir->pos = pos;
+    if(cur != thread_current()->cwd)
+      dir_close(cur);
+    return dir;
   }
    
 
   for (token = strtok_r (dir_path, "/", &save_ptr); token != NULL; token = strtok_r (NULL, "/", &save_ptr)){
-      struct dir *dir = malloc(sizeof(struct dir));
       struct dir_entry ep;
-      if(!lookup(cur, token, &ep, &dir->pos)) {
+      off_t pos;
+      if(!lookup(cur, token, &ep, &pos)) {
         // printf("dir_path_lookup: lookup2 failed\n");
         return NULL;
       }
-      dir->inode = inode_open(ep.inode_sector);
-      inode_close(cur->inode);
+      struct dir *dir = dir_open(inode_open(ep.inode_sector));
+      dir->pos = pos;
+      dir_close(cur);
       cur = dir;
   }
   return cur;
@@ -143,6 +150,7 @@ dir_open (struct inode *inode)
     {
       dir->inode = inode;
       dir->pos = 0;
+      lock_init(&dir->dir_lock);
       return dir;
     }
   else
