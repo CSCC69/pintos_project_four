@@ -101,12 +101,14 @@ went with one indirect and one doubly indirect block because that was enough to 
 >> do traversals of absolute and relative paths differ?
 
 Our code for traversing a user-specified path is implemented in dir_path_lookup. First, we determine if the path is absolute or relative, indicated by the presence or absence of a leading '/'.
-If absolute, we set the current directory as the root directory. If relative, we use the current thread's working directory.
+If absolute, we begin the traversal at the root directory. If relative, we use the current thread's working directory.
 
 Next, if the path doesn't contain a slash at all, it's only a directory name, and we simply look for it in the current directory, returning it, or NULL if not found.
 
 Otherwise, we must traverse the directory tree to find the specified directory. Using strtok, we parse the path, find each directory name in the current directory, and update the current directory
-to be the directory we just found. This is repeated until we have gone through the entire path, and we return the final directory, or NULL if at any point a directory wasn't found.
+to be the directory we just found. This is repeated until we have gone through the entire path, and we return the final directory, or NULL if at any point a directory wasn't found. On each step of 
+the traversal, we open the directory we are entering and close the directory that we just left. At the time of return, the directory we are returning is open, all other directories that we visited
+are closed.
 
 ---- SYNCHRONIZATION ----
 
