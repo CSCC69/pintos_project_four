@@ -42,7 +42,6 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct lock grow_lock;
     struct lock write_end_lock;
-    struct lock dir_lock;
     struct inode_disk data;             /* Inode content. */
   };
 
@@ -222,7 +221,6 @@ inode_open (block_sector_t sector)
   inode->removed = false;
 
   lock_init (&inode->grow_lock);
-  lock_init (&inode->dir_lock);
   lock_init (&inode->write_end_lock);
   block_read (fs_device, inode->sector, &inode->data);
   return inode;

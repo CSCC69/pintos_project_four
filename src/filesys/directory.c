@@ -304,7 +304,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
-  // printf("dir_remove %s\n", name);
   lock_acquire (&dir->dir_lock);
   struct dir_entry e;
   struct inode *inode = NULL;
