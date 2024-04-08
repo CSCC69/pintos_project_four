@@ -383,7 +383,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     {
       need_grow = true;
       lock_acquire(&inode->write_end_lock);
-      if (!inode_grow(inode, size, offset)) {
+      if (!inode_grow(inode, size, offset)) { //TODO: why write_end_lock and grow_lock?
         // printf("inode_grow failed\n");
         lock_release(&inode->write_end_lock);
         return 0;

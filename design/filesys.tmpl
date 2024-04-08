@@ -101,6 +101,11 @@ to be the directory we just found. This is repeated until we have gone through t
 >> should succeed, as should only one of two simultaneous attempts to
 >> create a file with the same name, and so on.
 
+To prevent races on directory entires, we acquire a lock on the parent directory in functions like dir_make and dir_remove. If there are two simultaneous attempts to create or remove the same file
+in a directory, the second attempt will try and acquire the lock, forcing it to wait for the first one to finish. Then, the second attempt checks that the file hasn't already been created or deleted,
+and since in this example it has, no changes are made, and the lock is released at the end. The Project 4 handout specifies that "operations on the same directory may wait for one another", and since
+operations like create or remove modify the dir struct both in memory and on disk, it's important to synchronize access to these.
+
 >> B5: Does your implementation allow a directory to be removed if it
 >> is open by a process or if it is in use as a process's current
 >> working directory?  If so, what happens to that process's future
