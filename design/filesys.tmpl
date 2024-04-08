@@ -33,6 +33,27 @@ https://elixir.bootlin.com/linux/v4.7/source/fs/ext2/ext2.h#L220
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Removed from struct inode_disk:
+
+  block_sector_t start; /* First data sector. */
+  uint32_t unused[125]; /* Not used. */
+
+Added to struct inode_disk:
+
+  bool is_dir; /* True if inode is a directory. */
+
+  block_sector_t block_pointers[NUM_DIRECT_BLOCKS + 2]; /* Block pointers. */
+  block_pointers tracks direct, indirect, and doubly-indirect blocks of a file.
+
+Added to struct inode:
+
+  struct lock grow_lock;
+  grow_lock is acquired when a file is growing and released after.
+
+  struct lock write_end_lock;
+  write_end_lock is acquired when a file is growing and released after it's done writing.
+
+
 >> A2: What is the maximum size of a file supported by your inode
 >> structure?  Show your work.
 
@@ -94,6 +115,16 @@ went with one indirect and one doubly indirect block because that was enough to 
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+Added to struct dir:
+
+  struct lock dir_lock; /* Directory lock */
+  A "dir_lock" synchronizes operations on directories such as creating and removing files inside of it.
+
+Added to struct thread:
+  
+  struct dir *cwd; /* Current working directory */
+  Represents the thread's current working directory.
 
 ---- ALGORITHMS ----
 
