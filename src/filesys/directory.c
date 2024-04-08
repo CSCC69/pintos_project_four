@@ -1,16 +1,22 @@
 #include "filesys/directory.h"
-#include <stdio.h>
-#include <string.h>
-#include <list.h>
+#include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "filesys/free-map.h"
+#include "filesys/fsutil.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
+#include "threads/thread.h"
+#include <list.h>
+#include <stdio.h>
+#include <string.h>
 
 /* A directory. */
 struct dir 
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
+    struct lock dir_lock;
   };
 
 /* A single directory entry. */
@@ -21,12 +27,123 @@ struct dir_entry
     bool in_use;                        /* In use or free? */
   };
 
+  static bool lookup (const struct dir *dir, const char *name,
+                      struct dir_entry *ep, off_t *ofsp);
+
+bool
+dir_change (const char *dir)
+{
+  struct dir *cur = dir_path_lookup (dir);
+  if (cur == NULL)
+    return false;
+  if (thread_current ()->cwd != NULL)
+    dir_close (thread_current ()->cwd);
+  thread_current ()->cwd = cur;
+  return true;
+}
+
+bool
+dir_make (const char *dir)
+{
+  char *dir_copy = malloc (strlen (dir) + 1);
+  strlcpy (dir_copy, dir, strlen (dir) + 1);
+
+  char *last_slash = strrchr (dir_copy, '/');
+  struct dir *cur;
+  if (last_slash != NULL)
+    {
+      *last_slash = '\0';
+      cur = dir_path_lookup (dir_copy);
+    }
+  else
+      cur = thread_current ()->cwd == NULL ? dir_open_root ()
+                                           : thread_current ()->cwd;
+
+  dir_lock_acquire (cur);
+
+  block_sector_t inode_sector = 0;
+  bool success
+      = (cur != NULL && free_map_allocate (1, &inode_sector)
+         && dir_create (inode_sector)
+         && dir_add (
+             cur, last_slash == NULL ? dir_copy : last_slash + sizeof (char),
+             inode_sector));
+  struct dir *new_dir = dir_open (inode_open (inode_sector));
+  success = (success && dir_add (new_dir, ".", inode_sector)
+             && dir_add (new_dir, "..", inode_get_inumber (cur->inode)));
+
+  dir_lock_release (cur);
+
+  if (new_dir != NULL)
+    dir_close (new_dir);
+
+  if (cur != thread_current ()->cwd)
+    dir_close (cur);
+
+  return success;
+}
+
+struct dir *
+dir_path_lookup (char *dir_path)
+{
+  if (strcmp (dir_path, "") == 0)
+    return thread_current ()->cwd;
+  if (strcmp (dir_path, "/") == 0)
+    return dir_open_root ();
+
+  char *token, *save_ptr;
+
+  struct dir *cur;
+
+  if (dir_path[0] == '/')
+    cur = dir_open_root ();
+  else
+    cur = thread_current ()->cwd;
+
+  if (cur == NULL)
+    cur = dir_open_root ();
+
+  if (strrchr (dir_path, '/') == NULL)
+    {
+      struct dir_entry ep;
+      off_t pos;
+      if (!lookup (cur, dir_path, &ep, &pos))
+        return NULL;
+
+      struct dir *dir = dir_open (inode_open (ep.inode_sector));
+      dir_lock_acquire (dir);
+      dir->pos = pos;
+
+      if (cur != thread_current ()->cwd)
+        dir_close (cur);
+      dir_lock_release (dir);
+      return dir;
+    }
+
+  for (token = strtok_r (dir_path, "/", &save_ptr); token != NULL;
+       token = strtok_r (NULL, "/", &save_ptr))
+    {
+      struct dir_entry ep;
+      off_t pos;
+      if (!lookup (cur, token, &ep, &pos))
+        return NULL;
+      struct dir *dir = dir_open (inode_open (ep.inode_sector));
+      dir_lock_acquire (dir);
+      dir->pos = pos;
+      if (cur != thread_current ()->cwd)
+        dir_close (cur);
+      cur = dir;
+      dir_lock_release (dir);
+    }
+  return cur;
+}
+
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
 bool
-dir_create (block_sector_t sector, size_t entry_cnt)
+dir_create (block_sector_t sector)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  return inode_create (sector, 0, true);
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -39,6 +156,7 @@ dir_open (struct inode *inode)
     {
       dir->inode = inode;
       dir->pos = 0;
+      lock_init (&dir->dir_lock);
       return dir;
     }
   else
@@ -99,15 +217,17 @@ lookup (const struct dir *dir, const char *name,
   ASSERT (name != NULL);
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-       ofs += sizeof e) 
-    if (e.in_use && !strcmp (name, e.name)) 
-      {
-        if (ep != NULL)
-          *ep = e;
-        if (ofsp != NULL)
-          *ofsp = ofs;
-        return true;
-      }
+       ofs += sizeof e)
+    {
+      if (e.in_use && !strcmp (name, e.name))
+        {
+          if (ep != NULL)
+            *ep = e;
+          if (ofsp != NULL)
+            *ofsp = ofs;
+          return true;
+        }
+    }
   return false;
 }
 
@@ -184,6 +304,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
+  // printf("dir_remove %s\n", name);
+  lock_acquire (&dir->dir_lock);
   struct dir_entry e;
   struct inode *inode = NULL;
   bool success = false;
@@ -198,7 +320,7 @@ dir_remove (struct dir *dir, const char *name)
 
   /* Open inode. */
   inode = inode_open (e.inode_sector);
-  if (inode == NULL)
+  if (inode == NULL || (inode_open_cnt (inode) > 1 && inode_is_dir (inode)))
     goto done;
 
   /* Erase directory entry. */
@@ -212,6 +334,7 @@ dir_remove (struct dir *dir, const char *name)
 
  done:
   inode_close (inode);
+  lock_release (&dir->dir_lock);
   return success;
 }
 
@@ -233,4 +356,36 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
+}
+
+bool
+fd_readdir (int fd, char *name)
+{
+  struct fd_file *fd_file = get_fd_file (thread_current (), fd);
+  struct dir_entry e;
+
+  while (inode_read_at (file_get_inode (fd_file->file), &e, sizeof e,
+                        file_get_pos (fd_file->file))
+         == sizeof e)
+    {
+      file_set_pos (fd_file->file, sizeof e);
+      if (e.in_use && strcmp (e.name, ".") != 0 && strcmp (e.name, "..") != 0)
+        {
+          strlcpy (name, e.name, NAME_MAX + 1);
+          return true;
+        } 
+    }
+  return false;
+}
+
+void
+dir_lock_acquire (struct dir *dir)
+{
+  lock_acquire (&dir->dir_lock);
+}
+
+void
+dir_lock_release (struct dir *dir)
+{
+  lock_release (&dir->dir_lock);
 }

@@ -102,6 +102,8 @@ struct thread
     struct list fd_file_closed;         /* Closed fd_file structs for reuse */
     bool is_fd_table_initialized;       /* If the file descriptor hashtable is initialized */
 
+    struct dir *cwd; /* Current working directory */
+
     struct thread *parent;              /* Parent thread */
 
     struct semaphore wait_sema;         /* Semaphore for parent threads to wait on children */

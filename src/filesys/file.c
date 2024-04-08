@@ -1,7 +1,8 @@
 #include "filesys/file.h"
-#include <debug.h>
 #include "filesys/inode.h"
+#include "filesys/off_t.h"
 #include "threads/malloc.h"
+#include <debug.h>
 
 /* An open file. */
 struct file 
@@ -60,6 +61,18 @@ file_get_inode (struct file *file)
   return file->inode;
 }
 
+off_t
+file_get_pos (struct file *file)
+{
+  return file->pos;
+}
+
+void
+file_set_pos (struct file *file, off_t pos)
+{
+  file->pos += pos;
+}
+
 /* Reads SIZE bytes from FILE into BUFFER,
    starting at the file's current position.
    Returns the number of bytes actually read,
@@ -94,6 +107,9 @@ file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs)
 off_t
 file_write (struct file *file, const void *buffer, off_t size) 
 {
+  // printf("file_write: %d\n", inode_is_dir(file->inode));
+  if (inode_is_dir (file->inode))
+    return -1;
   off_t bytes_written = inode_write_at (file->inode, buffer, size, file->pos);
   file->pos += bytes_written;
   return bytes_written;
@@ -165,4 +181,10 @@ file_tell (struct file *file)
 {
   ASSERT (file != NULL);
   return file->pos;
+}
+
+bool
+file_is_dir (struct file *file)
+{
+  return inode_is_dir (file->inode);
 }

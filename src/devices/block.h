@@ -1,14 +1,32 @@
 #ifndef DEVICES_BLOCK_H
 #define DEVICES_BLOCK_H
 
-#include <stddef.h>
+#include "stdbool.h"
 #include <inttypes.h>
+#include <stddef.h>
 
 /* Size of a block device sector in bytes.
    All IDE disks use this sector size, as do most USB and SCSI
    disks.  It's not worth it to try to cater to other sector
    sizes in Pintos (yet). */
 #define BLOCK_SECTOR_SIZE 512
+
+/* Number of block pointers (sector numbers) that can fit in a block */
+#define BLOCK_POINTERS_PER_BLOCK (BLOCK_SECTOR_SIZE / sizeof (uint32_t))
+
+/* Number of direct blocks per disk inode */
+#define NUM_DIRECT_BLOCKS 123
+/* Index of indirect block */
+#define INDIRECT_BLOCK NUM_DIRECT_BLOCKS
+/* Index of doubly indirect block */
+#define DOUBLE_INDIRECT_BLOCK (INDIRECT_BLOCK + 1)
+/* Total number of blocks per disk inode */
+#define NUM_BLOCKS (DOUBLE_INDIRECT_BLOCK + 1)
+
+/* Number of block pointers in one sector */
+#define NUM_INDIRECT_BLOCKS BLOCK_POINTERS_PER_BLOCK
+/* Number of sectors addressible in the indirect block */
+#define NUM_DOUBLE_INDIRECT_BLOCKS (BLOCK_POINTERS_PER_BLOCK << 1)
 
 /* Index of a block device sector.
    Good enough for devices up to 2 TB. */

@@ -1,11 +1,14 @@
 #include "filesys/filesys.h"
-#include <debug.h>
-#include <stdio.h>
-#include <string.h>
+#include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
-#include "filesys/directory.h"
+#include "threads/synch.h"
+#include "threads/thread.h"
+#include <debug.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -45,16 +48,44 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
+  // printf("filesys_create: %s\n", name);
   block_sector_t inode_sector = 0;
-  struct dir *dir = dir_open_root ();
-  bool success = (dir != NULL
-                  && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size)
-                  && dir_add (dir, name, inode_sector));
-  if (!success && inode_sector != 0) 
-    free_map_release (inode_sector, 1);
-  dir_close (dir);
+  char *dir_copy = malloc (strlen (name) + 1);
+  strlcpy (dir_copy, name, strlen (name) + 1);
 
+  char *last_slash = strrchr (dir_copy, '/');
+  struct dir *dir;
+
+  if (last_slash != NULL)
+    {
+      *last_slash = '\0';
+      // printf("looking up %s\n", dir_copy);
+      dir = dir_path_lookup (dir_copy);
+    }
+  else
+    {
+      dir = thread_current ()->cwd == NULL ? dir_open_root ()
+                                           : thread_current ()->cwd;
+    }
+
+  dir_lock_acquire (dir);
+
+  bool success
+      = (dir != NULL && free_map_allocate (1, &inode_sector)
+         && inode_create (inode_sector, initial_size, false)
+         && dir_add (dir,
+                     last_slash == NULL ? name : last_slash + sizeof (char),
+                     inode_sector));
+
+  if (!success && inode_sector != 0)
+    free_map_release (inode_sector, 1);
+
+  dir_lock_release (dir);
+
+  if (dir != thread_current ()->cwd)
+    dir_close (dir);
+
+  // printf("filesys_create: %d\n", success);
   return success;
 }
 
@@ -66,12 +97,35 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  // printf("filesys_open: %s\n", name);
+  if (strcmp (name, "/") == 0)
+    return file_open (inode_open (ROOT_DIR_SECTOR));
+
+  char *dir_copy = malloc (strlen (name) + 1);
+  strlcpy (dir_copy, name, strlen (name) + 1);
+
+  char *last_slash = strrchr (dir_copy, '/');
+  struct dir *dir;
+
+  if (last_slash != NULL)
+    {
+      if (!strcmp (last_slash, dir_copy))
+        dir = dir_open_root ();
+      else
+        {
+          *last_slash = '\0';
+          dir = dir_path_lookup (dir_copy);
+        }
+    }
+  else
+    dir = thread_current ()->cwd == NULL ? dir_open_root () : thread_current ()->cwd;
+
   struct inode *inode = NULL;
 
   if (dir != NULL)
-    dir_lookup (dir, name, &inode);
-  dir_close (dir);
+    dir_lookup (dir, last_slash == NULL ? name : last_slash + sizeof (char), &inode);
+  if (dir != thread_current ()->cwd)
+    dir_close (dir);
 
   return file_open (inode);
 }
@@ -83,9 +137,29 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
-  bool success = dir != NULL && dir_remove (dir, name);
-  dir_close (dir); 
+  // printf("filesys_remove: %s\n", name);
+
+  char *dir_copy = malloc (strlen (name) + 1);
+  strlcpy (dir_copy, name, strlen (name) + 1);
+
+  char *last_slash = strrchr (dir_copy, '/');
+  struct dir *cur;
+
+  if (last_slash != NULL)
+    {
+      *last_slash = '\0';
+      cur = dir_path_lookup (dir_copy);
+    }
+  else
+    cur = thread_current ()->cwd == NULL ? dir_open_root () : thread_current ()->cwd;
+
+  bool success
+      = cur != NULL
+        && dir_remove (cur,
+                       last_slash == NULL ? name : last_slash + sizeof (char));
+
+  if (cur != thread_current ()->cwd)
+    dir_close (cur);
 
   return success;
 }
@@ -96,7 +170,7 @@ do_format (void)
 {
   printf ("Formatting file system...");
   free_map_create ();
-  if (!dir_create (ROOT_DIR_SECTOR, 16))
+  if (!dir_create (ROOT_DIR_SECTOR))
     PANIC ("root directory creation failed");
   free_map_close ();
   printf ("done.\n");

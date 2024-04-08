@@ -75,6 +75,8 @@ start_process (void *prog_args_)
   struct intr_frame if_;
   bool success;
 
+  thread_current ()->cwd = dir_open_root ();
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;

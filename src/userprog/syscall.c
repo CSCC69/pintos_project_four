@@ -14,6 +14,8 @@
 #include "user/syscall.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include <filesys/directory.h>
+#include <filesys/inode.h>
 #include <string.h>
 #include <syscall-nr.h>
 #include <userprog/pagedir.h>
@@ -32,8 +34,11 @@ int write (int fd, const void *buffer, unsigned size);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
-
-static struct lock file_lock;
+bool chdir (const char *dir);
+bool mkdir (const char *dir);
+bool readdir (int fd, char *name);
+bool isdir (int fd);
+int inumber (int fd);
 
 /* Reads a byte at user virtual address UADDR.
    UADDR must be below PHYS_BASE.
@@ -51,7 +56,6 @@ void
 syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init (&file_lock);
 }
 
 /* Verifies that the stack pointer esp points to user memeory, and that 4 bytes
@@ -192,9 +196,70 @@ syscall_handler (struct intr_frame *f)
       unsigned int length = *(unsigned int *)syscall_args[2];
       f->eax = write (fd, write_buffer, length);
       break;
+    case SYS_CHDIR:
+      stack_pop (&syscall_args[0], 1, esp);
+      verify_user_pointer_word (syscall_args[0]);
+      const char *ch_dir = *(const char **)syscall_args[0];
+      f->eax = chdir (ch_dir);
+      break;
+    case SYS_MKDIR:
+      stack_pop (&syscall_args[0], 1, esp);
+      verify_user_pointer_word (syscall_args[0]);
+      const char *mk_dir = *(const char **)syscall_args[0];
+      f->eax = mkdir (mk_dir);
+      break;
+    case SYS_READDIR:
+      stack_pop (&syscall_args[0], 2, esp);
+      fd = *(int *)syscall_args[0];
+      verify_user_pointer_word (syscall_args[1]);
+      char *name = *(char **)syscall_args[1];
+      f->eax = readdir (fd, name);
+      break;
+    case SYS_ISDIR:
+      stack_pop (&syscall_args[0], 1, esp);
+      fd = *(int *)syscall_args[0];
+      f->eax = isdir (fd);
+      break;
+    case SYS_INUMBER:
+      stack_pop (&syscall_args[0], 1, esp);
+      fd = *(int *)syscall_args[0];
+      f->eax = inumber (fd);
+      break;
     default:
       break;
     }
+}
+
+bool
+chdir (const char *dir)
+{
+  if (dir == NULL || strlen (dir) == 0)
+    return false;
+  return dir_change (dir);
+}
+bool
+mkdir (const char *dir)
+{
+  if (dir == NULL || strlen (dir) == 0)
+    return false;
+  return dir_make (dir);
+}
+bool
+readdir (int fd, char *name)
+{
+  return fd_readdir (fd, name);
+}
+bool
+isdir (int fd)
+{
+  return file_is_dir (get_fd_file (thread_current (), fd)->file);
+}
+
+int
+inumber (int fd)
+{
+  return inode_get_inumber (
+      file_get_inode (get_fd_file (thread_current (), fd)->file));
 }
 
 /* Kernel implementation of the halt syscall */
@@ -226,17 +291,16 @@ exec (const char *cmd_line)
   memcpy (file_name, cmd_line, title_end);
   file_name[title_end] = '\0';
 
-  lock_acquire (&file_lock);
   struct file *file = filesys_open (file_name);
   if (file == NULL)
     return -1;
   file_close (file);
-  lock_release (&file_lock);
 
   pid_t pid = process_execute (cmd_line);
   if (pid == PID_ERROR)
     return PID_ERROR;
   struct thread *thread = get_child_by_tid (pid);
+  thread->cwd = thread_current ()->cwd;
   sema_down (&thread->exec_sema);
 
   return pid;
@@ -261,9 +325,7 @@ create (const char *file, unsigned initial_size)
       || strlen (file) == 0)
     return false;
 
-  lock_acquire (&file_lock);
   bool ret = filesys_create (file, initial_size);
-  lock_release (&file_lock);
   return ret;
 }
 
@@ -273,9 +335,7 @@ remove (const char *file)
 {
   if (file == NULL || strcmp (file, "") == 0)
     exit (-1);
-  lock_acquire (&file_lock);
   bool success = filesys_remove (file);
-  lock_release (&file_lock);
   return success;
 }
 
@@ -285,12 +345,10 @@ open (const char *file)
 {
   if (file == NULL || strcmp (file, "") == 0)
     return -1;
-  lock_acquire (&file_lock);
   struct file *opened_file = filesys_open (file);
   if (!opened_file)
     return -1;
   int fd = add_fd_file (thread_current (), opened_file);
-  lock_release (&file_lock);
   return fd;
 }
 
@@ -301,12 +359,10 @@ filesize (int fd)
   if (fd < 0)
     return -1;
 
-  lock_acquire (&file_lock);
   struct file *file = get_open_file (thread_current (), fd);
   if (!file)
     return -1;
   int file_size = file_length (file);
-  lock_release (&file_lock);
   return file_size;
 }
 
@@ -329,9 +385,7 @@ read (int fd, void *buffer, unsigned size)
       struct file *file = get_open_file (thread_current (), fd);
       if (!file)
         return -1;
-      lock_acquire (&file_lock);
       off_t bytes_read = file_read (file, buffer, size);
-      lock_release (&file_lock);
       return bytes_read;
     }
 }
@@ -358,9 +412,7 @@ write (int fd, const void *buffer, unsigned length)
       struct file *file = get_open_file (thread_current (), fd);
       if (!file)
         return -1;
-      lock_acquire (&file_lock);
       off_t bytes_written = file_write (file, buffer, length);
-      lock_release (&file_lock);
       return bytes_written;
     }
 }
@@ -388,9 +440,7 @@ tell (int fd)
   struct file *file = get_open_file (thread_current (), fd);
   if (file)
     {
-      lock_acquire (&file_lock);
       off_t next_byte_from_start = file_tell (file);
-      lock_release (&file_lock);
       return next_byte_from_start;
     }
   return 0;
@@ -404,8 +454,6 @@ close (int fd)
     return;
 
   struct file *file = get_open_file (thread_current (), fd);
-  lock_acquire (&file_lock);
   file_close (file);
   remove_fd_file (thread_current (), fd);
-  lock_release (&file_lock);
 }

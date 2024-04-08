@@ -10,6 +10,7 @@
 #include "threads/vaddr.h"
 #include "userprog/process.h"
 #include <debug.h>
+#include <filesys/directory.h>
 #include <random.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -201,6 +202,9 @@ thread_create (const char *name, int priority, thread_func *function,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  // t->cwd = thread_current()->cwd;
+  // t->cwd = dir_open_root ();
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -480,6 +484,8 @@ init_thread (struct thread *t, const char *name, int priority,
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   t->parent = parent;
+
+  t->cwd = NULL;
 
   sema_init (&t->wait_sema, 0);
   sema_init (&t->exec_sema, 0);
