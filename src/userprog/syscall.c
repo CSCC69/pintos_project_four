@@ -388,18 +388,9 @@ read (int fd, void *buffer, unsigned size)
       struct file *file = get_open_file (thread_current (), fd);
       if (!file)
         return -1;
-
-      struct lock *monitor_lock = file_get_monitor_lock(file);
-      lock_acquire(monitor_lock);
-      if (*file_get_active_writers(file) > 0)
-        cond_wait(file_get_write_cond(file), monitor_lock);
-
-      (*file_get_active_readers(file))++;
+      //lock_acquire (&file_lock);
       off_t bytes_read = file_read (file, buffer, size);
-      cond_signal(file_get_read_cond(file), monitor_lock);
-
-      (*file_get_active_readers(file))--;
-      lock_release(monitor_lock);
+      //lock_release (&file_lock);
       return bytes_read;
     }
 }
@@ -426,18 +417,9 @@ write (int fd, const void *buffer, unsigned length)
       struct file *file = get_open_file (thread_current (), fd);
       if (!file)
         return -1;
-
-      struct lock *monitor_lock = file_get_monitor_lock(file);
-      lock_acquire(monitor_lock);
-      if (*file_get_active_readers(file) > 0)
-        cond_wait(file_get_read_cond(file), monitor_lock);
-
-      (*file_get_active_writers(file))++;
+      //lock_acquire (&file_lock);
       off_t bytes_written = file_write (file, buffer, length);
-      cond_signal(file_get_read_cond(file), monitor_lock);
-
-      (*file_get_active_writers(file))--;
-      lock_release(monitor_lock);
+      //lock_release (&file_lock);
       return bytes_written;
     }
 }
