@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Louis Ren <louis.ren@mail.utoronto.co>
+Lucas Ilea <email@domain.example>
+Nathaneal Robbins <email@domain.example>
 
 ---- PRELIMINARIES ----
 
@@ -44,6 +44,11 @@ Therefore the maximum file size is 123*512 + 128*512 + 128^2*512 = 8517120 bytes
 
 >> A3: Explain how your code avoids a race if two processes attempt to
 >> extend a file at the same time.
+We hold a grow_lock in our struct inode which is acquired during inode_grow. This lock is placed 
+before the length check where we calculate how much we need to grow. If two processes try to grow 
+at the same time, whichever acquires the lock first will grow to its desired length then the latter 
+process will check if it still needs to be grown more - if it does, it will grow however much is necessary,
+if not, the function will exit. 
 
 >> A4: Suppose processes A and B both have file F open, both
 >> positioned at end-of-file.  If A reads and B writes F at the same
