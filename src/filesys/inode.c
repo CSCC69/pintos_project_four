@@ -379,17 +379,18 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
     return 0;
   }
   bool need_grow = false;
+  lock_acquire(&inode->write_end_lock);
   if (bytes_to_sectors(offset+size) > bytes_to_sectors(inode->data.length))
     {
       need_grow = true;
-      lock_acquire(&inode->write_end_lock);
-      if (!inode_grow(inode, size, offset)) { //TODO: why write_end_lock and grow_lock?
+      if (!inode_grow(inode, size, offset)) {
         // printf("inode_grow failed\n");
         lock_release(&inode->write_end_lock);
         return 0;
       }
         
     } else {
+      lock_release(&inode->write_end_lock);
       inode->data.length = offset + size > inode->data.length ? offset + size : inode->data.length;
       block_write (fs_device, inode->sector, &inode->data);
     }
