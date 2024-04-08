@@ -124,7 +124,6 @@ static bool
 archive_ordinary_file (const char *file_name, int file_fd,
                        int archive_fd, bool *write_error)
 {
-  // printf("file_name: %s\n", file_name);
   bool read_error = false;
   bool success = true;
   int file_size = filesize (file_fd);
@@ -132,7 +131,7 @@ archive_ordinary_file (const char *file_name, int file_fd,
   if (!write_header (file_name, USTAR_REGULAR, file_size,
                      archive_fd, write_error))
     return false;
-  // printf ("Putting '%s' into the file system...\n", file_name);
+    
   while (file_size > 0) 
     {
       static char buf[512];

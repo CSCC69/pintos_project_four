@@ -101,7 +101,6 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length, bool is_dir)
 {
-  // printf("inode_create\n");
   struct inode_disk *disk_inode = NULL;
 
   /* If this assertion fails, the inode structure is not exactly
@@ -288,7 +287,6 @@ inode_remove (struct inode *inode)
 off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
 {
-  // printf("inode_read_at size= %d\n", size);
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
   uint8_t *bounce = NULL;
@@ -335,7 +333,6 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
     }
   free (bounce);
 
-  // printf("bytes_read = %d, read %s\n", bytes_read, (char *) buffer);
   return bytes_read;
 }
 
@@ -456,6 +453,7 @@ inode_length (const struct inode *inode)
   return inode->data.length;
 }
 
+/* Grows the inode to the given size. */
 bool
 inode_grow (struct inode *inode, off_t size, off_t offset)
 {
@@ -554,12 +552,14 @@ inode_grow (struct inode *inode, off_t size, off_t offset)
   return true;
 }
 
+/* Returns true if the inode is a directory. */
 bool
 inode_is_dir (struct inode *inode)
 {
   return inode->data.is_dir;
 }
 
+/* Returns the number of openers of the inode. */
 int
 inode_open_cnt (struct inode *inode)
 {

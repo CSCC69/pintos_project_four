@@ -30,6 +30,7 @@ struct dir_entry
   static bool lookup (const struct dir *dir, const char *name,
                       struct dir_entry *ep, off_t *ofsp);
 
+/* Returns true if the directory change is successful, false otherwise. */
 bool
 dir_change (const char *dir)
 {
@@ -42,6 +43,7 @@ dir_change (const char *dir)
   return true;
 }
 
+/* Returns true if the directory creation is successful, false otherwise. */
 bool
 dir_make (const char *dir)
 {
@@ -83,6 +85,7 @@ dir_make (const char *dir)
   return success;
 }
 
+/* Returns the directory at the given path, or NULL if it does not exist. */
 struct dir *
 dir_path_lookup (char *dir_path)
 {
@@ -357,6 +360,9 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   return false;
 }
 
+/* Reads the next directory entry in the file descriptor FD and stores the
+   name in NAME.  Returns true if successful, false if the directory
+   contains no more entries. */
 bool
 fd_readdir (int fd, char *name)
 {
@@ -377,12 +383,14 @@ fd_readdir (int fd, char *name)
   return false;
 }
 
+/* Acquires the lock of the directory DIR. */
 void
 dir_lock_acquire (struct dir *dir)
 {
   lock_acquire (&dir->dir_lock);
 }
 
+/* Releases the lock of the directory DIR. */
 void
 dir_lock_release (struct dir *dir)
 {

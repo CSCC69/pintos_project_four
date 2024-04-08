@@ -61,12 +61,15 @@ file_get_inode (struct file *file)
   return file->inode;
 }
 
+/* Returns the current position of FILE. */
 off_t
 file_get_pos (struct file *file)
 {
   return file->pos;
 }
 
+/* Sets the current position in FILE to POS bytes from the
+   start of the file. */
 void
 file_set_pos (struct file *file, off_t pos)
 {
@@ -182,6 +185,7 @@ file_tell (struct file *file)
   return file->pos;
 }
 
+/* Returns true if FILE is a directory, false if it is an ordinary file. */
 bool
 file_is_dir (struct file *file)
 {
