@@ -31,4 +31,10 @@ off_t file_length (struct file *);
 
 bool file_is_dir(struct file *file);
 
+uint32_t *file_get_active_writers(struct file* file);
+uint32_t *file_get_active_readers(struct file* file);
+struct condition *file_get_write_cond(struct file* file);
+struct condition *file_get_read_cond(struct file* file);
+struct lock *file_get_monitor_lock(struct file* file);
+
 #endif /* filesys/file.h */

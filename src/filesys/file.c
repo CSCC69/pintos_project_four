@@ -3,6 +3,7 @@
 #include "filesys/inode.h"
 #include "filesys/off_t.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 
 /* An open file. */
 struct file 
@@ -10,6 +11,11 @@ struct file
     struct inode *inode;        /* File's inode. */
     off_t pos;                  /* Current position. */
     bool deny_write;            /* Has file_deny_write() been called? */
+    struct lock monitor_lock;
+    struct condition write_finished;
+    struct condition read_finished;
+    uint32_t active_writers;
+    uint32_t active_readers;
   };
 
 /* Opens a file for the given INODE, of which it takes ownership,
@@ -24,6 +30,11 @@ file_open (struct inode *inode)
       file->inode = inode;
       file->pos = 0;
       file->deny_write = false;
+      file->active_writers = 0;
+      file->active_readers = 0;
+      lock_init(&file->monitor_lock);
+      cond_init(&file->write_finished);
+      cond_init(&file->read_finished);
       return file;
     }
   else
@@ -184,4 +195,24 @@ file_tell (struct file *file)
 
 bool file_is_dir(struct file *file){
   return inode_is_dir(file->inode);
+}
+
+uint32_t *file_get_active_writers(struct file* file){
+  return &file->active_writers;
+}
+
+uint32_t *file_get_active_readers(struct file* file){
+  return &file->active_readers;
+}
+
+struct condition *file_get_write_cond(struct file* file){
+  return &file->write_finished;
+}
+
+struct condition *file_get_read_cond(struct file* file){
+  return &file->read_finished;
+}
+
+struct lock *file_get_monitor_lock(struct file* file){
+  return &file->monitor_lock;
 }
